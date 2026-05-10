@@ -383,11 +383,14 @@ class HomogeneousMultiChannelIzumi2026:
                     if result.rewards[m] > 0 and s_list[m] == -1:
                         # collision なし（no-sensing: reward > 0 で判断）
                         s_list[m] = l[m][i0]
-                        # l[m] の更新はブロック先頭まで遅らせる。
-                        # ここで即座に l[m][j0] = s_list[m] を更新すると、
-                        # 同ブロック内の後続ステップで新スロットが再マッチして
-                        # 同じ good arm を 2 回引いてしまうバグが発生するため。
-                        # 次のブロック先頭（t0 % K == 0）で更新される。
+                        # 論文 Algorithm 2:
+                        #   s <- ell_i
+                        #   ell_j <- s for all j in {1,...,n}
+                        # rank 確定後ただちに全 good arm の仮想スロットを s に揃える。
+                        # これにより、同じ virtual rank s は全 channel 上で占有され、
+                        # 他 player が同じ s に座ることを防ぐ。
+                        for j0 in range(n):
+                            l[m][j0] = s_list[m]
 
         return s_list
 
@@ -569,13 +572,7 @@ class HomogeneousMultiChannelIzumi2026:
         # Grand Leader は j==1 のプレイヤー
         grand_leader = next((m for m in range(M) if j_list[m] == 1), None)
         if grand_leader is None:
-            # ParallelVirtualNumberPlayers は no-sensing の確率的推定なので、
-            # 小さい tau や rank 衝突時に j==1 が欠けることがある。
-            # 簡略 HDE では最小 rank の player を Grand Leader として続行し、
-            # 後段の比較実験が例外で止まらないようにする。
-            grand_leader = min(range(M), key=lambda m: (j_list[m], m))
-            min_rank = j_list[grand_leader]
-            j_list = [j - min_rank + 1 for j in j_list]
+            raise ValueError("j==1 の Grand Leader が存在しない。")
 
         # M0: 現在の active players 数（推定値の最大を使う）
         M0 = max(M_hat_list)
@@ -811,8 +808,6 @@ class HomogeneousMultiChannelIzumi2026:
             M_hat_list, j_list = self.parallel_virtual_number_players(
                 runner, good_arms, s_list_safe, tau
             )
-            j_list = _normalize_internal_ranks(j_list, s_list_safe)
-            M_hat_list = [max(m_hat, M) for m_hat in M_hat_list]
         except HorizonReached:
             pass
 
@@ -997,25 +992,3 @@ def _build_result_izumi(
         "player_states": player_states,
         "phase_durations": runner.trace.phase_durations,
     }
-
-
-def _normalize_internal_ranks(j_list: List[int], s_list: List[int]) -> List[int]:
-    """
-    ParallelVirtualNumberPlayers の出力を HDE 用の一意 rank 1..M に整える。
-
-    no-sensing の人数推定は確率的に rank 重複や j==1 不在を起こし得る。論文の完全な
-    通信再試行までは実装しない初回版では、後段の Grand Leader / Sub-Leader 分岐が
-    例外で止まらないよう deterministic に tie-break する。
-    """
-    order = sorted(
-        range(len(j_list)),
-        key=lambda m: (
-            j_list[m] if j_list[m] >= 1 else len(j_list) + 1,
-            s_list[m] if s_list[m] >= 0 else len(j_list) + m,
-            m,
-        ),
-    )
-    normalized = [0] * len(j_list)
-    for rank, pid in enumerate(order, start=1):
-        normalized[pid] = rank
-    return normalized

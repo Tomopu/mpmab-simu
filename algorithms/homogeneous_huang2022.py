@@ -633,8 +633,6 @@ class HomogeneousHuang2022:
         # 3. VirtualNumberPlayers
         try:
             M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list_safe, tau_comm)
-            j_list = _normalize_internal_ranks(j_list, s_list_safe)
-            M_hat_list = [max(m_hat, M) for m_hat in M_hat_list]
         except HorizonReached:
             pass
 
@@ -758,26 +756,3 @@ def _build_result(
         "player_states": player_states,
         "phase_durations": runner.trace.phase_durations,
     }
-
-
-def _normalize_internal_ranks(j_list: List[int], s_list: List[int]) -> List[int]:
-    """
-    VirtualNumberPlayers の確率的な失敗で rank 重複や j==1 不在が起きた場合に、
-    後段の簡略 DistributedExploration が破綻しないよう 1..M の一意 rank に整える。
-
-    これは no-sensing の確率的推定を中央から正解化するものではなく、同値/未確定を
-    deterministic に解消するシミュレーター側の安全装置。比較実験ではこの補完が働いた
-    ケースを Trace/結果で検出できるよう、将来的にはフラグ化する。
-    """
-    order = sorted(
-        range(len(j_list)),
-        key=lambda m: (
-            j_list[m] if j_list[m] >= 1 else len(j_list) + 1,
-            s_list[m] if s_list[m] >= 0 else len(j_list) + m,
-            m,
-        ),
-    )
-    normalized = [0] * len(j_list)
-    for rank, pid in enumerate(order, start=1):
-        normalized[pid] = rank
-    return normalized

@@ -6,11 +6,11 @@
 
 ## 背景
 
-現在の実装には、実験を止めないための安全装置が入っている。
+現在の実装には、実験を止めないための安全装置が入っていた。
 
-- rank 推定後の `j_list` 正規化
-- `M_hat_list = max(m_hat, M)` による真値補正
-- Grand Leader 不在時の fallback leader
+- rank 推定後の `j_list` 正規化（2026-05-11 削除済み）
+- `M_hat_list = max(m_hat, M)` による真値補正（2026-05-11 削除済み）
+- Grand Leader 不在時の fallback leader（2026-05-11 削除済み）
 - `C_accept` 後の補完割当
 - Izumi 2026 の `_try_assign` における accepted good arms fallback
 - forced-collision bit 通信の直接集約近似
@@ -114,6 +114,18 @@
 - Izumi 2026 `data.tex`: `ParallelVirtualMusicalChairs`, `ParallelVirtualNumberPlayers`
 - Izumi 2026 `appendix.tex`: Sequential 版の対応箇所と説明表
 
+進捗:
+
+- 2026-05-11: `ParallelVirtualMusicalChairs` の rank 確定時更新を原文通り即時反映に修正した。
+  - 原文: `s <- ell_i; ell_j <- s for all j`
+  - 旧実装: 次ブロックまで `ell_j <- s` を遅延していた。
+  - 影響: 同一ブロック内で同じ virtual rank に複数 player が座ることを防げるようになった。
+- 2026-05-11: fallback なしの初期化不変条件テストを追加した。
+  - Huang VNP: `M_hat == M`, `j_list` が `1..M` の permutation。
+  - Izumi ParallelVNP: `M_hat == M`, `j_list` が `1..M` の permutation。
+- 2026-05-11: `run()` から `j_list` 正規化と `M_hat` 真値補正を削除した。
+- 2026-05-11: Izumi HDE の Grand Leader 不在 fallback を削除し、`j==1` がない場合はエラーに戻した。
+
 ### Phase 4: Assign / active set 更新を修正する
 
 目的:
@@ -133,8 +145,8 @@ Phase 3〜4 の不変条件テストが通ってから、以下を削除する�
 - `_normalize_internal_ranks`
 - `M_hat_list = [max(m_hat, M) ...]`
 - Grand Leader 不在 fallback
-- `C_accept` 補完割当 fallback
-- `_try_assign` の accepted good arms fallback。ただし、Izumi 2026 の論文意図として good arms を割当対象から除外するのか、top-M に含まれる可能性をどう扱うのかは原文確認後に決める。
+- `C_accept` 補完割当 fallback（未削除）
+- `_try_assign` の accepted good arms fallback（未削除）。ただし、Izumi 2026 の論文意図として good arms を割当対象から除外するのか、top-M に含まれる可能性をどう扱うのかは原文確認後に決める。
 
 ### Phase 6: forced-collision communication
 

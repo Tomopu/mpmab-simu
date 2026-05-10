@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+results/*.csv
+figures/*.png
+
 papers/(2020) An Optimal Algorithm for Multiplayer Multi-Armed Bandits/*
 papers/(2021) Heterogeneous Multi-player Multi-armed Bandits Closing the Gap and Generalization/*
 papers/(2022) Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information/*

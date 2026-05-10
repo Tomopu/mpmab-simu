@@ -5,14 +5,15 @@
 ## 役割
 
 - `Trace` と `PlayerState` から評価指標を計算する（`metrics.py`）。
-- 実験結果のグラフ生成を担う（`plotter.py`、未実装）。
+- 実験結果のグラフ生成を担う（`plotter.py`）。
 
 ## 主要ファイル
 
 | ファイル | 内容 |
 |---------|------|
-| `__init__.py` | `compute_metrics` をエクスポート |
+| `__init__.py` | `compute_metrics`, plotter helper をエクスポート |
 | `metrics.py` | `compute_metrics` の実装 |
+| `plotter.py` | regret curve / metric bar chart の保存 |
 
 ### `compute_metrics`
 
@@ -39,6 +40,11 @@ metrics = compute_metrics(
 | `final_assignment_success` | 全プレイヤーに arm が割り当てられたか |
 | `assignment_duplicate` | 割当 arm に重複があるか |
 
-## 今後追加予定
+### `plotter.py`
 
-- `plotter.py`: cumulative regret の折れ線グラフ、フェーズ別 Gantt チャートなど。
+```python
+save_regret_curve(curves_df, "figures/regret_huang_vs_izumi.png")
+save_metric_bar(summary_df, "init_duration", "figures/init_duration_by_n.png")
+```
+
+`experiments/compare_homogeneous.py` から呼び出し、PNG を `figures/` に保存する。

@@ -8,23 +8,31 @@
 - グラフを `figures/` に出力する。
 - 実験設定（K, M, T, means, seed, trial 数）をスクリプト内で明示する。
 
-## 今後追加予定
+## 主要ファイル
 
 | スクリプト | 内容 |
 |-----------|------|
 | `compare_homogeneous.py` | Huang 2022 vs Izumi 2026 の cumulative regret 比較 |
 
-### `compare_homogeneous.py` の予定仕様
+### `compare_homogeneous.py`
 
 ```bash
-python experiments/compare_homogeneous.py
-# → results/compare_homogeneous_YYYYMMDD.csv
-# → figures/compare_homogeneous_regret.png
+python experiments/compare_homogeneous.py --experiment small --trials 20
+# → results/homogeneous_small_sanity.csv
+# → results/homogeneous_small_sanity_curves.csv
+# → figures/regret_huang_vs_izumi.png
+# → figures/init_duration_by_n.png
+# → figures/collision_count_by_n.png
+# → figures/success_rate_by_n.png
 ```
 
-- 設定: K, M, T, means, delta, trial 数をスクリプト冒頭に定数として記述。
+- `--experiment`: `small`, `speedup`, `tradeoff` から選択。
+- `--trials`: trial 数を上書き。
+- `--horizon`: horizon `T` を上書き。
+- `--no-plots`: CSV のみ出力。
 - 各 trial で seed をインクリメントして再現性を確保。
-- 出力 CSV には trial, algorithm, step, cumulative_regret, phase, collision_count を含む。
+- summary CSV には algorithm, K, M, T, delta, n, trial, seed, regret, phase duration, success rate を含む。
+- curves CSV には time ごとの cumulative regret を含む。
 
 ## 出力先
 

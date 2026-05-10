@@ -1,0 +1,416 @@
+"""
+Huang 2022 と Izumi 2026 homogeneous 設定の比較実験。
+
+実行例:
+    python experiments/compare_homogeneous.py --experiment small --trials 20
+    python experiments/compare_homogeneous.py --experiment speedup --trials 50
+
+出力:
+    results/<experiment>.csv
+    results/<experiment>_curves.csv
+    figures/regret_huang_vs_izumi.png
+    figures/init_duration_by_n.png
+    figures/collision_count_by_n.png
+    figures/success_rate_by_n.png
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
+
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from algorithms import HomogeneousHuang2022, HomogeneousMultiChannelIzumi2026
+from core.runner import Runner
+from envs import BernoulliMPMABEnv
+from utils import compute_metrics, save_metric_bar, save_regret_curve
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    """比較実験の設定。"""
+
+    name: str
+    K: int
+    M: int
+    T: int
+    means: List[float]
+    n_values: List[int]
+    trials: int
+    seed_base: int = 20260510
+
+    @property
+    def delta(self) -> float:
+        # docs/20260510_implementation_and_experiments.md の設定に合わせる。
+        return 1.0 / (self.T * math.log(self.T))
+
+
+CONFIGS: Dict[str, ExperimentConfig] = {
+    "small": ExperimentConfig(
+        name="homogeneous_small_sanity",
+        K=5,
+        M=2,
+        # docs の最小案は T=5_000 だが、現実装の初期化フェーズが horizon に
+        # 届く seed があるため、デフォルト sanity check は完走しやすい 50_000 にする。
+        T=50_000,
+        means=[0.9, 0.8, 0.5, 0.2, 0.1],
+        n_values=[1, 2],
+        trials=20,
+    ),
+    "speedup": ExperimentConfig(
+        name="homogeneous_multichannel_speedup",
+        K=10,
+        M=5,
+        T=50_000,
+        means=[0.9, 0.85, 0.8, 0.75, 0.7, 0.45, 0.35, 0.25, 0.15, 0.1],
+        n_values=[1, 2, 3],
+        trials=50,
+    ),
+    "tradeoff": ExperimentConfig(
+        name="good_arm_tradeoff",
+        K=20,
+        M=5,
+        T=100_000,
+        means=[
+            0.95,
+            0.9,
+            0.86,
+            0.82,
+            0.78,
+            0.7,
+            0.64,
+            0.58,
+            0.52,
+            0.46,
+            0.4,
+            0.35,
+            0.3,
+            0.25,
+            0.2,
+            0.16,
+            0.12,
+            0.09,
+            0.06,
+            0.03,
+        ],
+        n_values=[1, 2, 4, 6],
+        trials=100,
+    ),
+}
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Huang 2022 と Izumi 2026 の homogeneous 比較実験"
+    )
+    parser.add_argument(
+        "--experiment",
+        choices=sorted(CONFIGS),
+        default="small",
+        help="実験設定名",
+    )
+    parser.add_argument(
+        "--trials",
+        type=int,
+        default=None,
+        help="trial 数。未指定なら設定ファイルの値を使う。",
+    )
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=None,
+        help="horizon T。未指定なら設定ファイルの値を使う。",
+    )
+    parser.add_argument(
+        "--sample-points",
+        type=int,
+        default=300,
+        help="regret curve CSV/PNG 用のサンプル点数。",
+    )
+    parser.add_argument(
+        "--no-plots",
+        action="store_true",
+        help="CSV のみ出力し、PNG を生成しない。",
+    )
+    args = parser.parse_args()
+
+    base = CONFIGS[args.experiment]
+    config = ExperimentConfig(
+        name=base.name,
+        K=base.K,
+        M=base.M,
+        T=args.horizon or base.T,
+        means=base.means,
+        n_values=base.n_values,
+        trials=args.trials or base.trials,
+        seed_base=base.seed_base,
+    )
+
+    summary_rows: List[Dict[str, object]] = []
+    curve_rows: List[Dict[str, object]] = []
+
+    for trial in range(config.trials):
+        seed = config.seed_base + trial
+        summary, curves = run_huang_trial(config, trial, seed, args.sample_points)
+        summary_rows.append(summary)
+        curve_rows.extend(curves)
+
+        for n in config.n_values:
+            summary, curves = run_izumi_trial(config, trial, seed, n, args.sample_points)
+            summary_rows.append(summary)
+            curve_rows.extend(curves)
+
+    summary_df = pd.DataFrame(summary_rows)
+    curve_df = pd.DataFrame(curve_rows)
+
+    results_dir = ROOT / "results"
+    figures_dir = ROOT / "figures"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    summary_path = results_dir / f"{config.name}.csv"
+    curves_path = results_dir / f"{config.name}_curves.csv"
+    summary_df.to_csv(summary_path, index=False)
+    curve_df.to_csv(curves_path, index=False)
+
+    if not args.no_plots:
+        save_regret_curve(curve_df, figures_dir / "regret_huang_vs_izumi.png")
+        save_metric_bar(
+            summary_df,
+            "init_duration",
+            figures_dir / "init_duration_by_n.png",
+            ylabel="average init duration",
+            title="Initialization Duration",
+        )
+        save_metric_bar(
+            summary_df,
+            "collision_count",
+            figures_dir / "collision_count_by_n.png",
+            ylabel="average collision count",
+            title="Collision Count",
+        )
+        save_metric_bar(
+            summary_df,
+            "final_assignment_success",
+            figures_dir / "success_rate_by_n.png",
+            ylabel="success rate",
+            title="Final Top-M Assignment Success Rate",
+        )
+
+    print(f"summary: {summary_path}")
+    print(f"curves:  {curves_path}")
+    if not args.no_plots:
+        print(f"figures: {figures_dir}")
+    print_summary(summary_df)
+
+
+def run_huang_trial(
+    config: ExperimentConfig, trial: int, seed: int, sample_points: int
+) -> Tuple[Dict[str, object], List[Dict[str, object]]]:
+    """Huang 2022 を 1 trial 実行する。"""
+    env = BernoulliMPMABEnv(
+        means=config.means,
+        num_players=config.M,
+        seed=seed,
+    )
+    runner = Runner(env=env, horizon=config.T)
+    algo = HomogeneousHuang2022(
+        K=config.K,
+        M=config.M,
+        delta=config.delta,
+        seed=seed,
+    )
+    result = algo.run(runner)
+    metrics = compute_metrics(
+        trace=runner.trace,
+        player_states=result["player_states"],
+        means=config.means,
+        M=config.M,
+    )
+    summary = build_summary_row(
+        config=config,
+        algorithm="huang2022",
+        n=1,
+        trial=trial,
+        seed=seed,
+        metrics=metrics,
+    )
+    curves = build_curve_rows(
+        trace_records=runner.trace.to_records(),
+        config=config,
+        algorithm="huang2022",
+        n=1,
+        trial=trial,
+        seed=seed,
+        sample_points=sample_points,
+    )
+    return summary, curves
+
+
+def run_izumi_trial(
+    config: ExperimentConfig,
+    trial: int,
+    seed: int,
+    n: int,
+    sample_points: int,
+) -> Tuple[Dict[str, object], List[Dict[str, object]]]:
+    """Izumi 2026 を 1 trial 実行する。"""
+    env = BernoulliMPMABEnv(
+        means=config.means,
+        num_players=config.M,
+        seed=seed,
+    )
+    runner = Runner(env=env, horizon=config.T)
+    algo = HomogeneousMultiChannelIzumi2026(
+        K=config.K,
+        M=config.M,
+        n=n,
+        delta=config.delta,
+        seed=seed,
+    )
+    result = algo.run(runner)
+    metrics = compute_metrics(
+        trace=runner.trace,
+        player_states=result["player_states"],
+        means=config.means,
+        M=config.M,
+    )
+    summary = build_summary_row(
+        config=config,
+        algorithm="izumi2026",
+        n=n,
+        trial=trial,
+        seed=seed,
+        metrics=metrics,
+    )
+    curves = build_curve_rows(
+        trace_records=runner.trace.to_records(),
+        config=config,
+        algorithm="izumi2026",
+        n=n,
+        trial=trial,
+        seed=seed,
+        sample_points=sample_points,
+    )
+    return summary, curves
+
+
+def build_summary_row(
+    config: ExperimentConfig,
+    algorithm: str,
+    n: int,
+    trial: int,
+    seed: int,
+    metrics: Dict[str, object],
+) -> Dict[str, object]:
+    """CSV summary 1 行分を作る。"""
+    row: Dict[str, object] = {
+        "algorithm": algorithm,
+        "K": config.K,
+        "M": config.M,
+        "T": config.T,
+        "delta": config.delta,
+        "n": n,
+        "trial": trial,
+        "seed": seed,
+    }
+
+    for key in [
+        "cumulative_regret",
+        "total_reward",
+        "total_steps",
+        "init_duration",
+        "find_good_duration",
+        "rank_duration",
+        "number_players_duration",
+        "exploration_duration",
+        "collision_count",
+        "final_assignment_success",
+        "player_count_success",
+        "rank_assignment_success",
+        "assignment_duplicate",
+    ]:
+        value = metrics.get(key)
+        if isinstance(value, bool):
+            value = int(value)
+        row[key] = value
+
+    return row
+
+
+def build_curve_rows(
+    trace_records: List[Dict[str, object]],
+    config: ExperimentConfig,
+    algorithm: str,
+    n: int,
+    trial: int,
+    seed: int,
+    sample_points: int,
+) -> List[Dict[str, object]]:
+    """Trace から平均 regret curve 用のサンプル行を作る。"""
+    sample_times = list(_sample_times(config.T, sample_points))
+    rows: List[Dict[str, object]] = []
+    idx = 0
+    last_regret = 0.0
+    last_phase = "not_started"
+
+    for t in sample_times:
+        while idx < len(trace_records) and int(trace_records[idx]["time"]) <= t:
+            last_regret = float(trace_records[idx]["cumulative_regret"])
+            last_phase = str(trace_records[idx]["phase"])
+            idx += 1
+        rows.append(
+            {
+                "algorithm": algorithm,
+                "K": config.K,
+                "M": config.M,
+                "T": config.T,
+                "delta": config.delta,
+                "n": n,
+                "trial": trial,
+                "seed": seed,
+                "time": t,
+                "cumulative_regret": last_regret,
+                "phase": last_phase,
+            }
+        )
+
+    return rows
+
+
+def _sample_times(T: int, sample_points: int) -> Iterable[int]:
+    """0 と T を含む等間隔 time grid を返す。"""
+    sample_points = max(2, sample_points)
+    seen = set()
+    for i in range(sample_points):
+        t = round(i * T / (sample_points - 1))
+        if t not in seen:
+            seen.add(t)
+            yield t
+
+
+def print_summary(summary_df: pd.DataFrame) -> None:
+    """CLI 用の短い集計を表示する。"""
+    cols = [
+        "cumulative_regret",
+        "init_duration",
+        "rank_duration",
+        "number_players_duration",
+        "collision_count",
+        "final_assignment_success",
+    ]
+    grouped = summary_df.groupby(["algorithm", "n"], as_index=False)[cols].mean()
+    print(grouped.to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()

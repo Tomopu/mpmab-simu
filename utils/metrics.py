@@ -57,25 +57,33 @@ def compute_metrics(
     )
 
     # フェーズ別所要時間の集計
-    # find_good_arm フェーズ
+    # FindGoodArm / FindMultipleGoodArms フェーズ（Huang 2022 / Izumi 2026 共通）
     find_good_duration = sum(
-        v for k, v in phase_durations.items() if k.startswith("find_good_arm")
+        v for k, v in phase_durations.items()
+        if k.startswith("find_good_arm") or k.startswith("find_multiple_good_arms")
     )
-    # VirtualMusicalChairs フェーズ
+    # VirtualMusicalChairs / ParallelVirtualMusicalChairs フェーズ
     rank_duration = sum(
-        v for k, v in phase_durations.items() if k.startswith("virtual_musical_chairs")
+        v for k, v in phase_durations.items()
+        if k.startswith("virtual_musical_chairs")
+        or k.startswith("parallel_virtual_musical_chairs")
     )
-    # VirtualNumberPlayers フェーズ
+    # VirtualNumberPlayers / ParallelVirtualNumberPlayers フェーズ
     number_players_duration = sum(
-        v for k, v in phase_durations.items() if k.startswith("virtual_number_players")
+        v for k, v in phase_durations.items()
+        if k.startswith("virtual_number_players")
+        or k.startswith("parallel_virtual_number_players")
     )
     # DistributedExploration フェーズ（phase サブフェーズも含む）
     exploration_duration = sum(
-        v for k, v in phase_durations.items() if k.startswith("distributed_exploration")
+        v for k, v in phase_durations.items()
+        if k.startswith("distributed_exploration")
     )
-    # HierarchicalDistributedExploration フェーズ（Izumi2026 用）
+    # HierarchicalDistributedExploration フェーズ（Izumi 2026 用, hde_phase* も含む）
     exploration_duration += sum(
-        v for k, v in phase_durations.items() if k.startswith("hierarchical_exploration")
+        v for k, v in phase_durations.items()
+        if k.startswith("hierarchical_distributed_exploration")
+        or k.startswith("hde_phase")
     )
 
     # 初期化合計

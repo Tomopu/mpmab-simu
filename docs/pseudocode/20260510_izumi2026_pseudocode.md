@@ -233,6 +233,270 @@ Source lines: `papers/(2026) Multi-Channel Communication Algorithm for Multi-Pla
 \end{algorithm}
 ```
 
+## Supplemental Pseudocode for Omitted Communication Routines
+
+この節は `data.tex` に明示されていない `ComGrandLeader`, `ComSubLeader`, `ComFollower` を、Huang 2022 の `ComLeader` / `ComFollow` と本論文本文の階層的リーダー制の説明から実装用に補完したものである。
+
+注意:
+
+- これは TeX から抽出した原文擬似コードではなく、実装のための補完仕様である。
+- 初回実装では forced-collision bit 通信を完全再現しなくてよい。Huang 2022 実装と同様に、通信結果は明示的に集約し、通信時間コストだけを `Trace` に記録してよい。
+- accept/reject 判定は Huang 2022 の `ComLeader` と同じ式を使う。
+- group id は論文本文に従い `g = ((j - 1) mod n) + 1` とする。
+- sub-leader は `j <= n` の player。grand leader は `j = 1` の player。
+
+### Shared Helper: AcceptReject
+
+```text
+Input:
+  K_active: active arms
+  M_active: active players count M'
+  mu_hat[k, m]: player m's estimate for arm k
+  N[k, m]: player m's sample count for arm k
+  p: phase index
+  delta: confidence parameter
+
+Output:
+  C_accept: accepted arms
+  C_reject: rejected arms
+
+For each k in K_active:
+  1. 集約推定値を計算する
+     rho[k] <- sum_m(mu_hat[k, m] * N[k, m]) / sum_m(N[k, m])
+
+  2. Huang 2022 と同じ信頼半径を計算する
+     B[k] <- sqrt(2 * log(1 / delta) / sum_m(N[k, m])) + 2^(-p/2 - 3)
+
+  3. top-M_active に入ることが確実な arm を accept する
+     if |{i in K_active: rho[k] - B[k] >= rho[i] + B[i]}| >= |K_active| - M_active:
+       add k to C_accept
+
+  4. top-M_active に入らないことが確実な arm を reject する
+     if |{i in K_active: rho[i] - B[i] >= rho[k] + B[k]}| >= M_active:
+       add k to C_reject
+```
+
+### Shared Helper: AssignAndUpdate
+
+```text
+Input:
+  player rank j
+  good arms G
+  active arms K_active
+  active players count M_active
+  C_accept
+  C_reject
+
+Output:
+  f: assigned arm or -1
+  K_next: updated active arms
+  M_next: updated active players count
+
+1. 通信用 good arms を follower に割り当てないため、accepted set から G を除外する
+   C_assign <- C_accept \ G
+
+2. rank の大きい active player から accepted arm を割り当てる
+   if M_active - j + 1 <= |C_assign|:
+      f <- C_assign[M_active - j + 1]
+      return f, K_active, M_active
+
+3. 割り当てがない場合は、accepted/rejected arms を inactive にする
+   K_next <- K_active \ (C_accept union C_reject)
+   M_next <- M_active - |C_accept|
+   f <- -1
+   return f, K_next, M_next
+```
+
+### ComGrandLeader
+
+```text
+Input:
+  mu_hat, N: grand leader が保持する player-arm 統計
+  E: grand leader 自身の current estimates
+  v: grand leader 自身の sample counts
+  G = {k_tilde_1, ..., k_tilde_n}: good arms used as channels
+  groups: mapping from group id to player ids
+  K_active: active arms
+  M_active: active players count M'
+  Q: message length
+  tau: sampling time
+  p: phase index
+  delta: confidence parameter
+
+Output:
+  f: grand leader assigned arm or -1
+  K_next
+  M_next
+  mu_hat_next
+  N_next
+  C_accept
+  C_reject
+
+1. grand leader 自身の統計を mu_hat, N に反映する
+   For each k in K_active:
+     mu_hat[k, grand_leader] <- E[k]
+     N[k, grand_leader] <- v[k]
+
+2. group 1 の follower から統計を受け取る
+   For each follower m in groups[1] excluding grand_leader:
+     For each k in K_active:
+       receive E_m[k], v_m[k] through channel G[1]
+       mu_hat[k, m] <- E_m[k]
+       N[k, m] <- v_m[k]
+       consume communication cost |K_active| * Q * tau
+
+3. sub-leader から各 group の集約統計を受け取る
+   For each group g = 2, ..., n:
+     Let subleader be the player with internal rank j = g
+     If subleader is active:
+       For each k in K_active:
+         receive group_mu[g, k], group_N[g, k] through channel G[1]
+         store them as aggregated group statistics
+         consume communication cost |K_active| * Q * tau
+
+4. player-level 統計と group-level 統計を合わせて global estimates を作る
+   Implementation option A:
+     Keep group statistics as weighted pseudo-player entries.
+   Implementation option B:
+     Expand group statistics back into mu_hat/N if individual follower values are available.
+   初回実装では option A でよい。
+
+5. AcceptReject を実行する
+   C_accept, C_reject <- AcceptReject(K_active, M_active, mu_hat, N, p, delta)
+
+6. 決定内容を sub-leader と group 1 follower に送る
+   Send |C_accept|, |C_reject|, C_accept, C_reject.
+   The downlink follows the reverse route of steps 2 and 3.
+   consume communication cost for each receiver.
+
+7. 自身の割当と active set を更新する
+   f, K_next, M_next <- AssignAndUpdate(j=1, G, K_active, M_active, C_accept, C_reject)
+
+8. Return f, K_next, M_next, mu_hat, N, C_accept, C_reject
+```
+
+### ComSubLeader
+
+```text
+Input:
+  E: sub-leader 自身の current estimates
+  v: sub-leader 自身の sample counts
+  j: sub-leader internal rank, where 2 <= j <= n
+  G: good arms used as channels
+  groups: mapping from group id to player ids
+  K_active
+  M_active
+  Q
+  tau
+  p
+
+Output:
+  f: sub-leader assigned arm or -1
+  K_next
+  M_next
+  group_mu
+  group_N
+
+1. 自分の group id を決める
+   g <- j
+   channel_to_followers <- G[g]
+   channel_to_grand_leader <- G[1]
+
+2. 自身の統計で group aggregate を初期化する
+   For each k in K_active:
+     group_sum[k] <- E[k] * v[k]
+     group_N[k] <- v[k]
+
+3. 同じ group の follower から統計を受け取る
+   For each follower m in groups[g] excluding sub-leader:
+     For each k in K_active:
+       receive E_m[k], v_m[k] through channel_to_followers
+       group_sum[k] <- group_sum[k] + E_m[k] * v_m[k]
+       group_N[k] <- group_N[k] + v_m[k]
+       consume communication cost |K_active| * Q * tau
+
+4. group aggregate を計算する
+   For each k in K_active:
+     if group_N[k] > 0:
+       group_mu[k] <- group_sum[k] / group_N[k]
+     else:
+       group_mu[k] <- 0
+
+5. group aggregate を grand leader に送る
+   For each k in K_active:
+     send group_mu[k], group_N[k] through channel_to_grand_leader
+     consume communication cost |K_active| * Q * tau
+
+6. grand leader から accept/reject 決定を受け取る
+   receive C_accept, C_reject through channel_to_grand_leader
+   consume downlink communication cost
+
+7. 決定内容を同じ group の follower に中継する
+   For each follower m in groups[g] excluding sub-leader:
+     send C_accept, C_reject through channel_to_followers
+     consume downlink communication cost
+
+8. 自身の割当と active set を更新する
+   f, K_next, M_next <- AssignAndUpdate(j, G, K_active, M_active, C_accept, C_reject)
+
+9. Return f, K_next, M_next, group_mu, group_N
+```
+
+### ComFollower
+
+```text
+Input:
+  E: follower current estimates
+  v: follower sample counts
+  j: follower internal rank, where j > n
+  G: good arms used as channels
+  K_active
+  M_active
+  Q
+  tau
+
+Output:
+  f: follower assigned arm or -1
+  K_next
+  M_next
+
+1. 所属 group を決める
+   g <- ((j - 1) mod n) + 1
+   channel <- G[g]
+
+2. 自分の推定値と sample count を sub-leader に送る
+   For each k in K_active:
+     send E[k], v[k] through channel
+     consume communication cost |K_active| * Q * tau
+
+3. sub-leader から accept/reject 決定を受け取る
+   receive C_accept, C_reject through channel
+   consume downlink communication cost
+
+4. 自身の割当と active set を更新する
+   f, K_next, M_next <- AssignAndUpdate(j, G, K_active, M_active, C_accept, C_reject)
+
+5. Return f, K_next, M_next
+```
+
+### Implementation Notes for Simplified Simulator
+
+```text
+初回実装では、以下の簡略化を許容する。
+
+1. Communication payload is copied directly.
+   forced-collision bit protocol は再現せず、E/v や accept/reject set は関数呼び出しで直接渡す。
+
+2. Communication cost is still recorded.
+   Runner/Trace には communication phase の dummy steps を追加し、Huang 2022 と Izumi 2026 の所要時間比較ができるようにする。
+
+3. Parallel group uplink/downlink can be charged by max group cost.
+   n groups が別 channel を使うため、同時に通信できる uplink/downlink は「全 group の合計」ではなく「最も長い group の通信時間」で近似してよい。
+
+4. Grand leader aggregation remains the only accept/reject decision point.
+   accept/reject の計算は grand leader だけが行い、sub-leader/follower は受け取った決定に従う。
+```
+
 ## Extraction Summary
 
 Total algorithm blocks: 5

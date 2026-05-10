@@ -71,9 +71,12 @@ def save_metric_bar(
     ]
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.bar(labels, grouped[metric])
+    bars = ax.bar(labels, grouped[metric])
     ax.set_ylabel(ylabel or metric)
     ax.set_title(title or metric)
+    if "success" in metric or metric.endswith("_rate"):
+        ax.set_ylim(0.0, 1.05)
+    ax.bar_label(bars, fmt="%.2f", padding=3)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)

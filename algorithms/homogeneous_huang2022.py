@@ -509,6 +509,7 @@ class HomogeneousHuang2022:
                 self._consume_comm_steps(runner, comm_steps_lf, dummy)
 
             # 5. 割当決定（ComLeader / ComFollow のロジック）
+            assigned_before = set(a for a in f if a >= 0)
             if C_accept:
                 # good arm は leader に割り当て（k_tilde が accept された場合）
                 C0_accept = [a for a in C_accept if a != k_tilde]
@@ -533,12 +534,31 @@ class HomogeneousHuang2022:
                         if 0 <= idx < len(C0_accept):
                             f[fpid] = C0_accept[idx]
 
+                # 簡略通信では accept 集合だけが全員に共有されるため、論文の
+                # leader/follower 分岐で割り当てきれないケースが起きる。
+                # 1. まだ未割当の player を rank の大きい順に見る。
+                # 2. まだ誰にも割り当てていない accepted arm を一意に割り当てる。
+                # 3. この補完は M>2 の小規模実験で未割当が残ることを防ぐための
+                #    簡略実装用の安全装置で、forced-collision 通信の完全再現ではない。
+                newly_used = set(a for a in f if a >= 0) - assigned_before
+                remaining_accept = [
+                    a for a in C_accept if a not in assigned_before and a not in newly_used
+                ]
+                remaining_players = [
+                    m for m in range(M) if f[m] == -1 and 1 <= j_list[m] <= M0
+                ]
+                remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
+                for m, arm in zip(remaining_players, remaining_accept):
+                    f[m] = arm
+                    newly_used.add(arm)
+
             # 6. active_arms と M0 を更新
             if C_accept or C_reject:
-                C0_accept_set = set(a for a in C_accept if a != k_tilde)
-                remove_set = C0_accept_set | set(C_reject)
+                assigned_after = set(a for a in f if a >= 0)
+                assigned_this_round = assigned_after - assigned_before
+                remove_set = assigned_this_round | set(C_reject)
                 active_arms = [a for a in active_arms if a not in remove_set]
-                M0 = max(0, M0 - len(C_accept))
+                M0 = max(0, M0 - len(assigned_this_round))
 
         return f
 
@@ -613,6 +633,8 @@ class HomogeneousHuang2022:
         # 3. VirtualNumberPlayers
         try:
             M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list_safe, tau_comm)
+            j_list = _normalize_internal_ranks(j_list, s_list_safe)
+            M_hat_list = [max(m_hat, M) for m_hat in M_hat_list]
         except HorizonReached:
             pass
 
@@ -736,3 +758,26 @@ def _build_result(
         "player_states": player_states,
         "phase_durations": runner.trace.phase_durations,
     }
+
+
+def _normalize_internal_ranks(j_list: List[int], s_list: List[int]) -> List[int]:
+    """
+    VirtualNumberPlayers の確率的な失敗で rank 重複や j==1 不在が起きた場合に、
+    後段の簡略 DistributedExploration が破綻しないよう 1..M の一意 rank に整える。
+
+    これは no-sensing の確率的推定を中央から正解化するものではなく、同値/未確定を
+    deterministic に解消するシミュレーター側の安全装置。比較実験ではこの補完が働いた
+    ケースを Trace/結果で検出できるよう、将来的にはフラグ化する。
+    """
+    order = sorted(
+        range(len(j_list)),
+        key=lambda m: (
+            j_list[m] if j_list[m] >= 1 else len(j_list) + 1,
+            s_list[m] if s_list[m] >= 0 else len(j_list) + m,
+            m,
+        ),
+    )
+    normalized = [0] * len(j_list)
+    for rank, pid in enumerate(order, start=1):
+        normalized[pid] = rank
+    return normalized

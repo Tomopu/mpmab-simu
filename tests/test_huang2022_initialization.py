@@ -142,3 +142,16 @@ class TestFullRun:
         assert any("find_good_arm" in k for k in durations), "find_good_arm フェーズが記録されていない"
         assert any("virtual_musical_chairs" in k for k in durations), "VMC フェーズが記録されていない"
         assert any("virtual_number_players" in k for k in durations), "VNP フェーズが記録されていない"
+
+    def test_three_players_get_unique_assignments(self):
+        """M=3 でも未割当や重複割当が残らないこと。"""
+        means = [0.9, 0.8, 0.7, 0.2, 0.1, 0.05]
+        env = BernoulliMPMABEnv(means=means, num_players=3, seed=7)
+        runner = Runner(env=env, horizon=2_000_000)
+        algo = HomogeneousHuang2022(K=6, M=3, delta=DELTA, seed=7)
+
+        result = algo.run(runner)
+        assigned = [ps.assigned_arm for ps in result["player_states"]]
+
+        assert all(a >= 0 for a in assigned), f"未割当が残っている: {assigned}"
+        assert len(set(assigned)) == 3, f"assigned_arm に重複がある: {assigned}"

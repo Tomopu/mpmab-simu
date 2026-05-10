@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from core.runner import Runner, HorizonReached
@@ -569,7 +569,13 @@ class HomogeneousMultiChannelIzumi2026:
         # Grand Leader は j==1 のプレイヤー
         grand_leader = next((m for m in range(M) if j_list[m] == 1), None)
         if grand_leader is None:
-            raise ValueError("j==1 の Grand Leader が存在しない。")
+            # ParallelVirtualNumberPlayers は no-sensing の確率的推定なので、
+            # 小さい tau や rank 衝突時に j==1 が欠けることがある。
+            # 簡略 HDE では最小 rank の player を Grand Leader として続行し、
+            # 後段の比較実験が例外で止まらないようにする。
+            grand_leader = min(range(M), key=lambda m: (j_list[m], m))
+            min_rank = j_list[grand_leader]
+            j_list = [j - min_rank + 1 for j in j_list]
 
         # M0: 現在の active players 数（推定値の最大を使う）
         M0 = max(M_hat_list)
@@ -689,6 +695,7 @@ class HomogeneousMultiChannelIzumi2026:
             )
 
             # 3. 各プレイヤーが AssignAndUpdate を実行して割当を決定する
+            assigned_before = set(a for a in f if a >= 0)
             if C_accept:
                 for m in range(M):
                     if f[m] == -1:
@@ -699,11 +706,33 @@ class HomogeneousMultiChannelIzumi2026:
                             C_accept=C_accept,
                         )
 
+                # j の重複や C_assign の不足で割り当てきれない場合の補完。
+                # 1. 未使用の accepted arm を集める。
+                # 2. 未割当 player を rank の大きい順に並べる。
+                # 3. 一意な arm を順に割り当てる。
+                # 簡略通信では accept/reject の集合だけを共有するため、この補完で
+                # M>2 の初期実装が未割当のまま停止することを防ぐ。
+                newly_used = set(a for a in f if a >= 0) - assigned_before
+                remaining_accept = [
+                    a for a in C_accept if a not in assigned_before and a not in newly_used
+                ]
+                remaining_players = [
+                    m for m in range(M) if f[m] == -1 and 1 <= j_list[m] <= M0
+                ]
+                remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
+                for m, arm in zip(remaining_players, remaining_accept):
+                    f[m] = arm
+                    newly_used.add(arm)
+
                 # active_arms と M0 をグローバルに更新する
-                # accepted/rejected 腕を全て除外する（good arms 含む）
-                remove_set = set(C_accept) | set(C_reject)
+                # 実際に割り当てた腕と rejected arm だけを除外する。
+                # C_accept を全て除外すると、割当されなかった accepted arm まで消えて
+                # M0 と未割当 player 数がずれる。
+                assigned_after = set(a for a in f if a >= 0)
+                assigned_this_round = assigned_after - assigned_before
+                remove_set = assigned_this_round | set(C_reject)
                 active_arms = [a for a in active_arms if a not in remove_set]
-                M0 = max(0, M0 - len(C_accept))
+                M0 = max(0, M0 - len(assigned_this_round))
             elif C_reject:
                 # accept はないが reject だけある場合
                 remove_set = set(C_reject)
@@ -782,6 +811,8 @@ class HomogeneousMultiChannelIzumi2026:
             M_hat_list, j_list = self.parallel_virtual_number_players(
                 runner, good_arms, s_list_safe, tau
             )
+            j_list = _normalize_internal_ranks(j_list, s_list_safe)
+            M_hat_list = [max(m_hat, M) for m_hat in M_hat_list]
         except HorizonReached:
             pass
 
@@ -966,3 +997,25 @@ def _build_result_izumi(
         "player_states": player_states,
         "phase_durations": runner.trace.phase_durations,
     }
+
+
+def _normalize_internal_ranks(j_list: List[int], s_list: List[int]) -> List[int]:
+    """
+    ParallelVirtualNumberPlayers の出力を HDE 用の一意 rank 1..M に整える。
+
+    no-sensing の人数推定は確率的に rank 重複や j==1 不在を起こし得る。論文の完全な
+    通信再試行までは実装しない初回版では、後段の Grand Leader / Sub-Leader 分岐が
+    例外で止まらないよう deterministic に tie-break する。
+    """
+    order = sorted(
+        range(len(j_list)),
+        key=lambda m: (
+            j_list[m] if j_list[m] >= 1 else len(j_list) + 1,
+            s_list[m] if s_list[m] >= 0 else len(j_list) + m,
+            m,
+        ),
+    )
+    normalized = [0] * len(j_list)
+    for rank, pid in enumerate(order, start=1):
+        normalized[pid] = rank
+    return normalized

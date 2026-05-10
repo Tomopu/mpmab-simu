@@ -323,6 +323,21 @@ class TestFullRunIzumi:
                     f"player {i} の good arm {k} の真の平均報酬が 0"
                 )
 
+    def test_three_players_get_unique_assignments(self):
+        """M=3, n=2 でも Grand Leader 不在や重複割当が起きないこと。"""
+        means = [0.9, 0.8, 0.7, 0.2, 0.1, 0.05]
+        env = BernoulliMPMABEnv(means=means, num_players=3, seed=7)
+        runner = Runner(env=env, horizon=2_000_000)
+        algo = HomogeneousMultiChannelIzumi2026(
+            K=6, M=3, n=2, delta=DELTA, seed=7
+        )
+
+        result = algo.run(runner)
+        assigned = [ps.assigned_arm for ps in result["player_states"]]
+
+        assert all(a >= 0 for a in assigned), f"未割当が残っている: {assigned}"
+        assert len(set(assigned)) == 3, f"assigned_arm に重複がある: {assigned}"
+
 
 # ============================================================
 # TestN1Compatibility: n=1 のとき Huang 2022 と矛盾しないことを確認

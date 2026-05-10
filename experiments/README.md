@@ -29,10 +29,29 @@ python experiments/compare_homogeneous.py --experiment small --trials 20
 - `--experiment`: `small`, `speedup`, `tradeoff` から選択。
 - `--trials`: trial 数を上書き。
 - `--horizon`: horizon `T` を上書き。
+- `--K`, `--M`: arm 数・player 数を上書き。
+- `--n-values`: Izumi 2026 の `n` 値をカンマ区切りで指定。
+- `--means`: arm 平均報酬をカンマ区切りで直接指定。
+- `--name-suffix`: 出力ファイル名の suffix。
 - `--no-plots`: CSV のみ出力。
 - 各 trial で seed をインクリメントして再現性を確保。
 - summary CSV には algorithm, K, M, T, delta, n, trial, seed, regret, phase duration, success rate を含む。
 - curves CSV には time ごとの cumulative regret を含む。
+
+arm 数と player 数を変える例:
+
+```bash
+python experiments/compare_homogeneous.py \
+  --experiment small \
+  --K 7 \
+  --M 3 \
+  --n-values 1,2 \
+  --horizon 80000 \
+  --trials 20 \
+  --name-suffix K7_M3
+```
+
+regret curve には trial 間の 95% CI を薄い帯で表示する。
 
 ## 出力先
 

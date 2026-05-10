@@ -13,30 +13,50 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def save_regret_curve(curves: pd.DataFrame, output_path: str | Path) -> None:
+def save_regret_curve(
+    curves: pd.DataFrame,
+    output_path: str | Path,
+    confidence: float = 0.95,
+) -> None:
     """
     平均 cumulative regret の折れ線グラフを保存する。
 
     Args:
         curves: columns = algorithm, n, time, cumulative_regret を含む DataFrame。
         output_path: 保存先 PNG path。
+        confidence: 信頼区間。現在は正規近似の 95% CI を想定する。
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    grouped = curves.groupby(["algorithm", "n", "time"], as_index=False)[
-        "cumulative_regret"
-    ].mean()
+    grouped = (
+        curves.groupby(["algorithm", "n", "time"])["cumulative_regret"]
+        .agg(["mean", "std", "count"])
+        .reset_index()
+    )
+    z_value = 1.96 if confidence == 0.95 else 1.96
+    grouped["sem"] = grouped["std"].fillna(0.0) / grouped["count"].pow(0.5)
+    grouped["ci"] = z_value * grouped["sem"]
 
     for (algorithm, n), sub in grouped.groupby(["algorithm", "n"]):
         sub = sub.sort_values("time")
         label = algorithm if algorithm == "huang2022" else f"{algorithm} (n={n})"
-        ax.plot(sub["time"], sub["cumulative_regret"], label=label, linewidth=2)
+        (line,) = ax.plot(sub["time"], sub["mean"], label=label, linewidth=2)
+        lower = sub["mean"] - sub["ci"]
+        upper = sub["mean"] + sub["ci"]
+        ax.fill_between(
+            sub["time"],
+            lower,
+            upper,
+            color=line.get_color(),
+            alpha=0.18,
+            linewidth=0,
+        )
 
     ax.set_xlabel("time")
     ax.set_ylabel("average cumulative regret")
-    ax.set_title("Cumulative Regret")
+    ax.set_title(f"Cumulative Regret with {int(confidence * 100)}% CI")
     ax.grid(True, alpha=0.3)
     ax.legend()
     fig.tight_layout()

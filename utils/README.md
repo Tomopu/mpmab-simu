@@ -48,3 +48,4 @@ save_metric_bar(summary_df, "init_duration", "figures/init_duration_by_n.png")
 ```
 
 `experiments/compare_homogeneous.py` から呼び出し、PNG を `figures/` に保存する。
+regret curve は trial 間の平均値に加えて 95% CI を薄い帯で表示する。

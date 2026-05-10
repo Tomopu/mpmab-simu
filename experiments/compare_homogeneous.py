@@ -21,7 +21,7 @@ import math
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
 
@@ -136,6 +136,44 @@ def main() -> None:
         default=300,
         help="regret curve CSV/PNG 用のサンプル点数。",
     )
+    parser.add_argument("--K", type=int, default=None, help="腕数 K を上書き。")
+    parser.add_argument("--M", type=int, default=None, help="プレイヤー数 M を上書き。")
+    parser.add_argument(
+        "--n-values",
+        type=str,
+        default=None,
+        help="Izumi 2026 の n 値。例: 1,2,3",
+    )
+    parser.add_argument(
+        "--means",
+        type=str,
+        default=None,
+        help="arm 平均報酬をカンマ区切りで指定。例: 0.9,0.8,0.5",
+    )
+    parser.add_argument(
+        "--mean-high",
+        type=float,
+        default=0.9,
+        help="--means 未指定時に自動生成する最大平均報酬。",
+    )
+    parser.add_argument(
+        "--mean-low",
+        type=float,
+        default=0.1,
+        help="--means 未指定時に自動生成する最小平均報酬。",
+    )
+    parser.add_argument(
+        "--name-suffix",
+        type=str,
+        default=None,
+        help="出力ファイル名に付ける suffix。K/M を変える実験の区別に使う。",
+    )
+    parser.add_argument(
+        "--ci",
+        type=float,
+        default=0.95,
+        help="regret curve に描く信頼区間。現在は 0.95 を想定。",
+    )
     parser.add_argument(
         "--no-plots",
         action="store_true",
@@ -143,17 +181,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    base = CONFIGS[args.experiment]
-    config = ExperimentConfig(
-        name=base.name,
-        K=base.K,
-        M=base.M,
-        T=args.horizon or base.T,
-        means=base.means,
-        n_values=base.n_values,
-        trials=args.trials or base.trials,
-        seed_base=base.seed_base,
-    )
+    config = build_config(args)
 
     summary_rows: List[Dict[str, object]] = []
     curve_rows: List[Dict[str, object]] = []
@@ -183,25 +211,29 @@ def main() -> None:
     curve_df.to_csv(curves_path, index=False)
 
     if not args.no_plots:
-        save_regret_curve(curve_df, figures_dir / "regret_huang_vs_izumi.png")
+        save_regret_curve(
+            curve_df,
+            figures_dir / f"{config.name}_regret_huang_vs_izumi.png",
+            confidence=args.ci,
+        )
         save_metric_bar(
             summary_df,
             "init_duration",
-            figures_dir / "init_duration_by_n.png",
+            figures_dir / f"{config.name}_init_duration_by_n.png",
             ylabel="average init duration",
             title="Initialization Duration",
         )
         save_metric_bar(
             summary_df,
             "collision_count",
-            figures_dir / "collision_count_by_n.png",
+            figures_dir / f"{config.name}_collision_count_by_n.png",
             ylabel="average collision count",
             title="Collision Count",
         )
         save_metric_bar(
             summary_df,
             "final_assignment_success",
-            figures_dir / "success_rate_by_n.png",
+            figures_dir / f"{config.name}_success_rate_by_n.png",
             ylabel="success rate",
             title="Final Top-M Assignment Success Rate",
         )
@@ -211,6 +243,62 @@ def main() -> None:
     if not args.no_plots:
         print(f"figures: {figures_dir}")
     print_summary(summary_df)
+
+
+def build_config(args: argparse.Namespace) -> ExperimentConfig:
+    """CLI 引数で preset を上書きした ExperimentConfig を作る。"""
+    base = CONFIGS[args.experiment]
+    K = args.K or base.K
+    M = args.M or base.M
+    T = args.horizon or base.T
+    means = parse_means(args.means) if args.means else generate_means(K, args.mean_high, args.mean_low)
+    if len(means) != K:
+        raise ValueError(f"means の長さは K と一致する必要がある。len(means)={len(means)}, K={K}")
+    if M >= K:
+        raise ValueError(f"M < K が必要。M={M}, K={K}")
+
+    n_values = parse_int_list(args.n_values) if args.n_values else list(base.n_values)
+    max_n = K - M - 1
+    n_values = [n for n in n_values if 1 <= n <= max_n]
+    if not n_values:
+        raise ValueError(f"有効な n がない。Izumi 2026 実装では 1 <= n < K-M が必要。K-M={K-M}")
+
+    suffix = args.name_suffix or f"K{K}_M{M}_T{T}"
+    name = f"{base.name}_{suffix}" if suffix else base.name
+
+    return ExperimentConfig(
+        name=name,
+        K=K,
+        M=M,
+        T=T,
+        means=means,
+        n_values=n_values,
+        trials=args.trials or base.trials,
+        seed_base=base.seed_base,
+    )
+
+
+def parse_means(raw: str) -> List[float]:
+    """カンマ区切りの arm 平均報酬を読む。"""
+    means = [float(x.strip()) for x in raw.split(",") if x.strip()]
+    if any(mu <= 0.0 or mu >= 1.0 for mu in means):
+        raise ValueError("means はすべて (0, 1) の範囲にしてください。")
+    return means
+
+
+def parse_int_list(raw: str) -> List[int]:
+    """カンマ区切り整数リストを読む。"""
+    return [int(x.strip()) for x in raw.split(",") if x.strip()]
+
+
+def generate_means(K: int, high: float, low: float) -> List[float]:
+    """K 本の arm 平均報酬を降順に線形生成する。"""
+    if not (0.0 < low < high < 1.0):
+        raise ValueError("0 < mean-low < mean-high < 1 が必要。")
+    if K == 1:
+        return [high]
+    step = (high - low) / (K - 1)
+    return [high - step * i for i in range(K)]
 
 
 def run_huang_trial(

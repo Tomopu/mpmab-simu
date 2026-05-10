@@ -14,9 +14,10 @@ MPMAB シミュレーターのアルゴリズム実装モジュール。
 
 | ファイル | 内容 |
 |---------|------|
-| `__init__.py` | `HomogeneousHuang2022` をエクスポート |
+| `__init__.py` | 実装済みアルゴリズムをエクスポート |
 | `base.py` | `BaseAlgorithm` 抽象基底クラス |
 | `homogeneous_huang2022.py` | Huang et al. (2022) の homogeneous 設定アルゴリズム |
+| `homogeneous_multichannel_izumi2026.py` | Izumi et al. (2026) の homogeneous multi-channel 設定アルゴリズム |
 
 ### `BaseAlgorithm`
 
@@ -43,10 +44,27 @@ player_states = result["player_states"]  # List[PlayerState]
 - `distributed_exploration(runner, k_tilde, j_list, M_hat_list, tau)` — Algorithm 4: UCB ベースの arm 割当。
 - `run(runner)` — Algorithm 5: 各フェーズを順次実行するエントリーポイント。
 
+### `HomogeneousMultiChannelIzumi2026`
+
+```python
+algo = HomogeneousMultiChannelIzumi2026(K=5, M=2, n=2, delta=1e-5, seed=42)
+result = algo.run(runner)
+player_states = result["player_states"]  # List[PlayerStateIzumi]
+```
+
+Izumi et al. (2026) "Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing" の homogeneous multi-channel 設定実装。
+
+- `find_multiple_good_arms(runner)` — Algorithm 1: n 本の good arm を探索。
+- `parallel_virtual_musical_chairs(runner, good_arms, tau)` — Algorithm 2: n 本の good arm を用いて外部 rank を割り当て。
+- `parallel_virtual_number_players(runner, good_arms, s_list, tau)` — Algorithm 3: n 本並列でプレイヤー数と内部 rank を推定。
+- `hierarchical_distributed_exploration(runner, good_arms, j_list, M_hat_list, tau)` — Algorithm 4: Grand Leader / Sub-Leader / Follower による階層的探索。
+- `run(runner)` — ProposedParallelAlgorithm: 各フェーズを順次実行するエントリーポイント。
+
+通信は初回実装では簡略化している。forced-collision bit 伝送は完全再現せず、通信 payload は直接集約し、通信時間コストだけを `Trace` に記録する。
+
 ## 今後追加予定
 
 | クラス名 | 論文 | 設定 |
 |---------|------|------|
-| `HomogeneousMultiChannelIzumi2026` | Izumi et al. (2026) | homogeneous, n チャンネル拡張 |
 | `HeterogeneousShiBeacon2021` | Shi et al. (2021) | heterogeneous, beacon 方式 |
 | `HeterogeneousWangOrthogonalization2020` | Wang et al. (2020) | heterogeneous, 直交化方式 |

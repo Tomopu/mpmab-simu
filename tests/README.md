@@ -14,6 +14,7 @@ pytest によるユニットテストを置くディレクトリ。
 |---------|------|---------|
 | `test_env.py` | `BernoulliMPMABEnv` | 11 |
 | `test_huang2022_initialization.py` | `HomogeneousHuang2022` の初期化フェーズ | 7 |
+| `test_izumi2026_initialization.py` | `HomogeneousMultiChannelIzumi2026` の初期化フェーズ | 16 |
 
 ### 実行方法
 
@@ -45,6 +46,26 @@ python -m pytest tests/ -v
 - full run で全プレイヤーが assignment を得る
 - full run で phase_durations が記録される
 
+### `test_izumi2026_initialization.py` の項目
+
+- FindMultipleGoodArms が n 本の arm を返す
+- FindMultipleGoodArms が正の平均を持つ arm を返す
+- FindMultipleGoodArms の mu_tilde が下限として妥当
+- FindMultipleGoodArms が重複のない arm set を返す
+- ParallelVirtualMusicalChairs で同一ブロック内の good arm pull が重複しない
+- ParallelVirtualMusicalChairs が rank を割り当てる
+- ParallelVirtualMusicalChairs の rank が概ね重複なし
+- ParallelVirtualNumberPlayers のスロット制約が守られる
+- ParallelVirtualNumberPlayers の M_hat が妥当な範囲に入る
+- full run で assigned arm に重複なし
+- full run で全プレイヤーが assignment を得る
+- full run で phase_durations が記録される
+- PlayerStateIzumi に good_arms が記録される
+- n=1 の Izumi 2026 が assignment に成功する
+- n=1 の Izumi 2026 と Huang 2022 がどちらも成功する
+- n=1 の Izumi 2026 で assigned arm に重複なし
+
 ## 今後追加予定
 
-- `test_izumi2026.py`: `HomogeneousMultiChannelIzumi2026` の同時複数 pull 発生なし、n=1 で single-channel との整合性確認。
+- 比較実験スクリプトの smoke test。
+- Step 5/6 実装後の metrics / plotting / CSV 出力テスト。

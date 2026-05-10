@@ -12,6 +12,7 @@ PDF ではなく TeX の `algorithm` 環境を抽出しているため、Claude 
 
 - [20260510_izumi2026_pseudocode.md](20260510_izumi2026_pseudocode.md)
   - Homogeneous multi-channel MPMAB。
+  - `data.tex` に記述された parallel 版のみ。
   - 初回実装の proposed multi-channel model。
 
 - [20260510_shi2021_beacon_pseudocode.md](20260510_shi2021_beacon_pseudocode.md)

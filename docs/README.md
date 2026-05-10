@@ -17,6 +17,7 @@
 
 - [Izumi 2026](pseudocode/20260510_izumi2026_pseudocode.md)
   - Homogeneous multi-channel MPMAB。
+  - `data.tex` に記述された parallel 版のみ。
   - `FindMultipleGoodArms`, `ParallelVirtualMusicalChairs`, `ParallelVirtualNumberPlayers`, `HierarchicalDistributedExploration` など。
 
 - [Shi 2021 BEACON](pseudocode/20260510_shi2021_beacon_pseudocode.md)

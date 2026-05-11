@@ -40,8 +40,7 @@ mpmab-simu/
 │   └── test_izumi2026_initialization.py
 ├── docs/               # 設計資料・実装メモ・擬似コード
 ├── papers/             # 参照論文の参考実装
-├── results/            # 実験結果 CSV（実験スクリプト出力先）
-├── figures/            # グラフ（実験スクリプト出力先）
+├── runs/               # 実験ごとの CSV / PNG 出力先（gitignore）
 ├── main.py             # sanity check エントリーポイント
 └── requirements.txt    # numpy, pandas, matplotlib, pytest
 ```

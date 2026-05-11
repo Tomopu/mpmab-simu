@@ -19,7 +19,7 @@
 | `experiments/README.md` | 実験スクリプトの実行方法と出力仕様を更新 |
 | `utils/README.md` | `plotter.py` の説明を追加 |
 | `README.md` | Step 4〜6 の実装状況と実験コマンドを追加 |
-| `.gitignore` | 再生成可能な `results/*.csv`, `figures/*.png` を除外 |
+| `.gitignore` | 再生成可能な `runs/` を除外 |
 
 ## 実験コマンド
 
@@ -51,19 +51,21 @@ python experiments/compare_homogeneous.py --experiment small --trials 20
 | `--name-suffix NAME` | 出力ファイル名に suffix を付ける |
 | `--ci 0.95` | regret curve に描く信頼区間 |
 | `--no-plots` | CSV のみ出力 |
+| `--output-root runs` | run ディレクトリを作成する親ディレクトリ |
 
 ## 出力
 
 ```text
-results/<experiment>_<suffix>.csv
-results/<experiment>_<suffix>_curves.csv
-figures/<experiment>_<suffix>_regret_huang_vs_izumi.png
-figures/<experiment>_<suffix>_init_duration_by_n.png
-figures/<experiment>_<suffix>_collision_count_by_n.png
-figures/<experiment>_<suffix>_success_rate_by_n.png
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/summary.csv
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/curves.csv
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/regret_huang_vs_izumi.png
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/init_duration_by_n.png
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/collision_count_by_n.png
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/success_rate_by_n.png
+runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/run_config.json
 ```
 
-`results/` と `figures/` の成果物は再生成可能なので Git 管理から除外する。
+`runs/` の成果物は再生成可能なので Git 管理から除外する。実行ごとに日付時刻つきのディレクトリを作り、CSV と PNG を同じ場所に保存する。
 
 ## 注意
 

@@ -6,20 +6,20 @@ Huang 2022 と Izumi 2026 homogeneous 設定の比較実験。
     python experiments/compare_homogeneous.py --experiment speedup --trials 50
 
 出力:
-    results/<experiment>.csv
-    results/<experiment>_curves.csv
-    figures/regret_huang_vs_izumi.png
-    figures/init_duration_by_n.png
-    figures/collision_count_by_n.png
-    figures/success_rate_by_n.png
+    runs/<YYYYMMDD_HHMMSS>_<experiment>/summary.csv
+    runs/<YYYYMMDD_HHMMSS>_<experiment>/curves.csv
+    runs/<YYYYMMDD_HHMMSS>_<experiment>/*.png
+    runs/<YYYYMMDD_HHMMSS>_<experiment>/run_config.json
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
@@ -179,69 +179,104 @@ def main() -> None:
         action="store_true",
         help="CSV のみ出力し、PNG を生成しない。",
     )
+    parser.add_argument(
+        "--retry-on-failure",
+        action="store_true",
+        help="final_assignment_success が false の trial を seed を変えて再試行する。",
+    )
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="--retry-on-failure 時の最大 attempt 数。",
+    )
+    parser.add_argument(
+        "--output-root",
+        type=str,
+        default="runs",
+        help="実験 run ディレクトリを作成する親ディレクトリ。",
+    )
     args = parser.parse_args()
+    if args.max_attempts < 1:
+        raise ValueError("--max-attempts は 1 以上にしてください。")
 
     config = build_config(args)
+    run_dir = create_run_dir(ROOT / args.output_root, config.name)
 
     summary_rows: List[Dict[str, object]] = []
     curve_rows: List[Dict[str, object]] = []
 
     for trial in range(config.trials):
         seed = config.seed_base + trial
-        summary, curves = run_huang_trial(config, trial, seed, args.sample_points)
+        summary, curves = run_with_optional_retry(
+            config=config,
+            algorithm="huang2022",
+            trial=trial,
+            seed=seed,
+            n=1,
+            sample_points=args.sample_points,
+            retry_on_failure=args.retry_on_failure,
+            max_attempts=args.max_attempts,
+        )
         summary_rows.append(summary)
         curve_rows.extend(curves)
 
         for n in config.n_values:
-            summary, curves = run_izumi_trial(config, trial, seed, n, args.sample_points)
+            summary, curves = run_with_optional_retry(
+                config=config,
+                algorithm="izumi2026",
+                trial=trial,
+                seed=seed,
+                n=n,
+                sample_points=args.sample_points,
+                retry_on_failure=args.retry_on_failure,
+                max_attempts=args.max_attempts,
+            )
             summary_rows.append(summary)
             curve_rows.extend(curves)
 
     summary_df = pd.DataFrame(summary_rows)
     curve_df = pd.DataFrame(curve_rows)
 
-    results_dir = ROOT / "results"
-    figures_dir = ROOT / "figures"
-    results_dir.mkdir(parents=True, exist_ok=True)
-    figures_dir.mkdir(parents=True, exist_ok=True)
-
-    summary_path = results_dir / f"{config.name}.csv"
-    curves_path = results_dir / f"{config.name}_curves.csv"
+    summary_path = run_dir / "summary.csv"
+    curves_path = run_dir / "curves.csv"
     summary_df.to_csv(summary_path, index=False)
     curve_df.to_csv(curves_path, index=False)
+    save_run_config(run_dir, config, args)
 
     if not args.no_plots:
         save_regret_curve(
             curve_df,
-            figures_dir / f"{config.name}_regret_huang_vs_izumi.png",
+            run_dir / "regret_huang_vs_izumi.png",
             confidence=args.ci,
         )
         save_metric_bar(
             summary_df,
             "init_duration",
-            figures_dir / f"{config.name}_init_duration_by_n.png",
+            run_dir / "init_duration_by_n.png",
             ylabel="average init duration",
             title="Initialization Duration",
         )
         save_metric_bar(
             summary_df,
             "collision_count",
-            figures_dir / f"{config.name}_collision_count_by_n.png",
+            run_dir / "collision_count_by_n.png",
             ylabel="average collision count",
             title="Collision Count",
         )
         save_metric_bar(
             summary_df,
             "final_assignment_success",
-            figures_dir / f"{config.name}_success_rate_by_n.png",
+            run_dir / "success_rate_by_n.png",
             ylabel="success rate",
             title="Final Top-M Assignment Success Rate",
         )
 
+    print(f"run_dir: {run_dir}")
     print(f"summary: {summary_path}")
     print(f"curves:  {curves_path}")
     if not args.no_plots:
-        print(f"figures: {figures_dir}")
+        print(f"figures: {run_dir}")
     print_summary(summary_df)
 
 
@@ -304,6 +339,44 @@ def generate_means(K: int, high: float, low: float) -> List[float]:
         return [high]
     step = (high - low) / (K - 1)
     return [high - step * i for i in range(K)]
+
+
+def create_run_dir(output_root: Path, config_name: str) -> Path:
+    """日付時刻と実験名から run ディレクトリを作る。"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in config_name)
+    base = output_root / f"{timestamp}_{safe_name}"
+    run_dir = base
+    suffix = 2
+    while run_dir.exists():
+        run_dir = Path(f"{base}_{suffix:02d}")
+        suffix += 1
+    run_dir.mkdir(parents=True)
+    return run_dir
+
+
+def save_run_config(
+    run_dir: Path, config: ExperimentConfig, args: argparse.Namespace
+) -> None:
+    """再実行に必要な設定を JSON として保存する。"""
+    payload = {
+        "config": {
+            "name": config.name,
+            "K": config.K,
+            "M": config.M,
+            "T": config.T,
+            "delta": config.delta,
+            "means": config.means,
+            "n_values": config.n_values,
+            "trials": config.trials,
+            "seed_base": config.seed_base,
+        },
+        "args": vars(args),
+    }
+    (run_dir / "run_config.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def run_huang_trial(
@@ -395,6 +468,69 @@ def run_izumi_trial(
         sample_points=sample_points,
     )
     return summary, curves
+
+
+def run_with_optional_retry(
+    config: ExperimentConfig,
+    algorithm: str,
+    trial: int,
+    seed: int,
+    n: int,
+    sample_points: int,
+    retry_on_failure: bool,
+    max_attempts: int,
+) -> Tuple[Dict[str, object], List[Dict[str, object]]]:
+    """
+    1 trial を実行し、必要なら割当失敗時に seed を変えて再試行する。
+
+    再試行で破棄した attempt は summary/curve には混ぜない。全 attempt が
+    失敗した場合だけ、最後の失敗 attempt を retry_exhausted=1 として保存する。
+    """
+    attempts = max(1, max_attempts if retry_on_failure else 1)
+    last_summary: Dict[str, object] = {}
+    last_curves: List[Dict[str, object]] = []
+
+    for attempt in range(attempts):
+        attempt_seed = seed + attempt * 1_000_000
+        if algorithm == "huang2022":
+            summary, curves = run_huang_trial(
+                config, trial, attempt_seed, sample_points
+            )
+        elif algorithm == "izumi2026":
+            summary, curves = run_izumi_trial(
+                config, trial, attempt_seed, n, sample_points
+            )
+        else:
+            raise ValueError(f"unknown algorithm: {algorithm}")
+
+        summary["attempt"] = attempt
+        summary["attempts_used"] = attempt + 1
+        summary["retry_exhausted"] = 0
+        for row in curves:
+            row["attempt"] = attempt
+            row["attempts_used"] = attempt + 1
+
+        last_summary = summary
+        last_curves = curves
+
+        if _is_success(summary):
+            return summary, curves
+
+        if not retry_on_failure:
+            return summary, curves
+
+        print(
+            f"retry: algorithm={algorithm} n={n} trial={trial} "
+            f"attempt={attempt + 1}/{attempts} seed={attempt_seed} failed"
+        )
+
+    last_summary["retry_exhausted"] = 1
+    return last_summary, last_curves
+
+
+def _is_success(summary: Dict[str, object]) -> bool:
+    """実験再試行で成功扱いにする条件。"""
+    return bool(summary.get("final_assignment_success"))
 
 
 def build_summary_row(

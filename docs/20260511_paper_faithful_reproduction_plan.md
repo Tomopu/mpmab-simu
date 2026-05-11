@@ -125,6 +125,7 @@
   - Izumi ParallelVNP: `M_hat == M`, `j_list` が `1..M` の permutation。
 - 2026-05-11: `run()` から `j_list` 正規化と `M_hat` 真値補正を削除した。
 - 2026-05-11: Izumi HDE の Grand Leader 不在 fallback を削除し、`j==1` がない場合はエラーに戻した。
+- 2026-05-11: `C_accept` 補完割当 fallback と Izumi `_try_assign` の accepted good arms fallback を通常実行経路から外した。旧処理は `docs/20260511_fallback_inventory.md` に記録し、未使用 helper として隔離した。
 
 ### Phase 4: Assign / active set 更新を修正する
 
@@ -145,8 +146,8 @@ Phase 3〜4 の不変条件テストが通ってから、以下を削除する�
 - `_normalize_internal_ranks`
 - `M_hat_list = [max(m_hat, M) ...]`
 - Grand Leader 不在 fallback
-- `C_accept` 補完割当 fallback（未削除）
-- `_try_assign` の accepted good arms fallback（未削除）。ただし、Izumi 2026 の論文意図として good arms を割当対象から除外するのか、top-M に含まれる可能性をどう扱うのかは原文確認後に決める。
+- `C_accept` 補完割当 fallback（通常実行経路からは除外済み、旧 helper は未使用で保持）
+- `_try_assign` の accepted good arms fallback（通常実行経路からは除外済み、旧 helper は未使用で保持）。ただし、Izumi 2026 の論文意図として good arms を割当対象から除外するのか、top-M に含まれる可能性をどう扱うのかは原文確認後に決める。
 
 ### Phase 6: forced-collision communication
 

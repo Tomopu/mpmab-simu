@@ -534,23 +534,8 @@ class HomogeneousHuang2022:
                         if 0 <= idx < len(C0_accept):
                             f[fpid] = C0_accept[idx]
 
-                # 簡略通信では accept 集合だけが全員に共有されるため、論文の
-                # leader/follower 分岐で割り当てきれないケースが起きる。
-                # 1. まだ未割当の player を rank の大きい順に見る。
-                # 2. まだ誰にも割り当てていない accepted arm を一意に割り当てる。
-                # 3. この補完は M>2 の小規模実験で未割当が残ることを防ぐための
-                #    簡略実装用の安全装置で、forced-collision 通信の完全再現ではない。
-                newly_used = set(a for a in f if a >= 0) - assigned_before
-                remaining_accept = [
-                    a for a in C_accept if a not in assigned_before and a not in newly_used
-                ]
-                remaining_players = [
-                    m for m in range(M) if f[m] == -1 and 1 <= j_list[m] <= M0
-                ]
-                remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
-                for m, arm in zip(remaining_players, remaining_accept):
-                    f[m] = arm
-                    newly_used.add(arm)
+                # 補完割当 fallback は論文手順ではないため通常経路からは呼ばない。
+                # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
 
             # 6. active_arms と M0 を更新
             if C_accept or C_reject:
@@ -625,14 +610,9 @@ class HomogeneousHuang2022:
         except HorizonReached:
             pass
 
-        # s が -1（未確定）のプレイヤーは 0 にフォールバック（安全装置）
-        # 未確定の場合、後続の VirtualNumberPlayers が誤った推定を出す可能性があるが、
-        # テスト設定では十分な horizon があるため確定するはず。
-        s_list_safe = [s if s >= 0 else 0 for s in s_list]
-
         # 3. VirtualNumberPlayers
         try:
-            M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list_safe, tau_comm)
+            M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list, tau_comm)
         except HorizonReached:
             pass
 
@@ -723,6 +703,32 @@ class HomogeneousHuang2022:
                 C_reject.append(k)
 
         return C_accept, C_reject
+
+    def _fallback_assign_remaining_accepts(
+        self,
+        f: List[int],
+        j_list: List[int],
+        M0: int,
+        C_accept: List[int],
+        assigned_before: set[int],
+    ) -> None:
+        """
+        未使用の accepted arm を未割当 player に補完割当する旧実験用 fallback。
+
+        現在の論文再現経路からは呼び出さない。簡略通信実装で未割当が残る
+        小規模実験を継続させるために使っていた処理を、将来の比較用に隔離して残す。
+        """
+        newly_used = set(a for a in f if a >= 0) - assigned_before
+        remaining_accept = [
+            a for a in C_accept if a not in assigned_before and a not in newly_used
+        ]
+        remaining_players = [
+            m for m in range(self.M) if f[m] == -1 and 1 <= j_list[m] <= M0
+        ]
+        remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
+        for m, arm in zip(remaining_players, remaining_accept):
+            f[m] = arm
+            newly_used.add(arm)
 
 
 # ------------------------------------------------------------------

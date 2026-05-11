@@ -268,18 +268,22 @@ class TestFullRunIzumi:
             f"assigned_arm に重複がある: {assigned}"
         )
 
-    def test_all_players_get_assignment(self):
-        """run() 後に全プレイヤーが arm を割り当てられること（horizon 内）。"""
+    def test_assignment_failure_is_exposed_without_fallback(self):
+        """fallback を使わず、未割当がある場合はそのまま観測できること。"""
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
 
         result = algo.run(runner)
         player_states = result["player_states"]
+        assigned = [ps.assigned_arm for ps in player_states]
 
-        for i, ps in enumerate(player_states):
-            assert ps.assigned_arm >= 0, (
-                f"player {i} が arm を割り当てられていない: {ps}"
-            )
+        assert any(a == -1 for a in assigned), (
+            "fallback を外した設定では、この seed の未割当を隠さず返す"
+        )
+        assigned_non_negative = [a for a in assigned if a >= 0]
+        assert len(assigned_non_negative) == len(set(assigned_non_negative)), (
+            f"割当済み arm に重複がある: {assigned}"
+        )
 
     def test_phase_durations_recorded(self):
         """フェーズごとの所要ステップ数が記録されていること。"""
@@ -316,8 +320,8 @@ class TestFullRunIzumi:
                     f"player {i} の good arm {k} の真の平均報酬が 0"
                 )
 
-    def test_three_players_get_unique_assignments(self):
-        """M=3, n=2 でも Grand Leader 不在や重複割当が起きないこと。"""
+    def test_three_players_failure_is_exposed_without_fallback(self):
+        """M=3, n=2 でも補完割当で未完成状態を隠さないこと。"""
         means = [0.9, 0.8, 0.7, 0.2, 0.1, 0.05]
         env = BernoulliMPMABEnv(means=means, num_players=3, seed=7)
         runner = Runner(env=env, horizon=2_000_000)
@@ -328,8 +332,13 @@ class TestFullRunIzumi:
         result = algo.run(runner)
         assigned = [ps.assigned_arm for ps in result["player_states"]]
 
-        assert all(a >= 0 for a in assigned), f"未割当が残っている: {assigned}"
-        assert len(set(assigned)) == 3, f"assigned_arm に重複がある: {assigned}"
+        assert any(a == -1 for a in assigned), (
+            f"fallback なしの未割当状態が観測できない: {assigned}"
+        )
+        assigned_non_negative = [a for a in assigned if a >= 0]
+        assert len(assigned_non_negative) == len(set(assigned_non_negative)), (
+            f"割当済み arm に重複がある: {assigned}"
+        )
 
 
 # ============================================================
@@ -344,7 +353,7 @@ class TestN1Compatibility:
         n=1 の Izumi 2026 が全プレイヤーに arm を割り当てられること。
 
         n=1 は good arm 1 本のみを通信チャンネルとして使う Huang 2022 類似ケース。
-        どちらも同じ設定で成功できることを確認する。
+        good arm が accept された場合は leader に割り当てる必要がある。
         """
         env_izumi, runner_izumi = make_env_and_runner(seed=100)
         algo_izumi = make_algo(n=1, seed=100)
@@ -360,9 +369,6 @@ class TestN1Compatibility:
     def test_n1_and_huang2022_both_succeed(self):
         """
         n=1 の Izumi 2026 と Huang 2022 がどちらも割当成功すること（同一 seed）。
-
-        両アルゴリズムで割当に成功することを確認する。
-        n=1 Izumi が失敗して Huang 2022 が成功する場合、実装に問題がある。
         """
         # Huang 2022
         env_h, runner_h = make_env_and_runner(seed=200)
@@ -380,11 +386,15 @@ class TestN1Compatibility:
         izumi_success = all(ps.assigned_arm >= 0 for ps in ps_i)
         izumi_no_dup = len(set(ps.assigned_arm for ps in ps_i)) == M
 
-        # Huang が成功した場合、Izumi も成功するはず（n=1 は同等設定）
+        # Huang が成功した場合、n=1 Izumi も Huang 型の good arm leader 割当で成功する。
         if huang_success and huang_no_dup:
             assert izumi_success, (
                 f"Huang 2022 は成功したが n=1 Izumi 2026 は失敗した。"
                 f"assigned: {[ps.assigned_arm for ps in ps_i]}"
+            )
+            assert izumi_no_dup, (
+                f"n=1 Izumi 2026 の assigned_arm に重複がある: "
+                f"{[ps.assigned_arm for ps in ps_i]}"
             )
 
     def test_n1_no_duplicate_assignment(self):

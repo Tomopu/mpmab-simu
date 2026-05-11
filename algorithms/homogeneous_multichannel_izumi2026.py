@@ -694,32 +694,38 @@ class HomogeneousMultiChannelIzumi2026:
             # 3. 各プレイヤーが AssignAndUpdate を実行して割当を決定する
             assigned_before = set(a for a in f if a >= 0)
             if C_accept:
-                for m in range(M):
-                    if f[m] == -1:
-                        f[m] = self._try_assign(
-                            j=j_list[m],
-                            good_arms=good_arms,
-                            M_active=M0,
-                            C_accept=C_accept,
-                        )
+                if n == 1:
+                    # n=1 は Huang 2022 と同じ通信チャンネル 1 本のケース。
+                    # good arm が accept された場合、leader (j=1) だけが good arm を
+                    # 受け取り、follower は good arm を除いた accept 集合から割り当てる。
+                    good_arm = good_arms[0]
+                    C0_accept = [a for a in C_accept if a != good_arm]
+                    good_arm_accepted = good_arm in C_accept
 
-                # j の重複や C_assign の不足で割り当てきれない場合の補完。
-                # 1. 未使用の accepted arm を集める。
-                # 2. 未割当 player を rank の大きい順に並べる。
-                # 3. 一意な arm を順に割り当てる。
-                # 簡略通信では accept/reject の集合だけを共有するため、この補完で
-                # M>2 の初期実装が未割当のまま停止することを防ぐ。
-                newly_used = set(a for a in f if a >= 0) - assigned_before
-                remaining_accept = [
-                    a for a in C_accept if a not in assigned_before and a not in newly_used
-                ]
-                remaining_players = [
-                    m for m in range(M) if f[m] == -1 and 1 <= j_list[m] <= M0
-                ]
-                remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
-                for m, arm in zip(remaining_players, remaining_accept):
-                    f[m] = arm
-                    newly_used.add(arm)
+                    if f[grand_leader] == -1:
+                        if M0 - 1 == len(C0_accept) and good_arm_accepted:
+                            f[grand_leader] = good_arm
+                        elif len(C0_accept) >= M0:
+                            f[grand_leader] = C0_accept[M0 - 1]
+
+                    for m in range(M):
+                        if m == grand_leader or f[m] != -1:
+                            continue
+                        idx = M0 - j_list[m]
+                        if 0 <= idx < len(C0_accept):
+                            f[m] = C0_accept[idx]
+                else:
+                    for m in range(M):
+                        if f[m] == -1:
+                            f[m] = self._try_assign(
+                                j=j_list[m],
+                                good_arms=good_arms,
+                                M_active=M0,
+                                C_accept=C_accept,
+                            )
+
+                # 補完割当 fallback は論文手順ではないため通常経路からは呼ばない。
+                # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
 
                 # active_arms と M0 をグローバルに更新する
                 # 実際に割り当てた腕と rejected arm だけを除外する。
@@ -800,13 +806,10 @@ class HomogeneousMultiChannelIzumi2026:
         except HorizonReached:
             pass
 
-        # s が -1（未確定）のプレイヤーは 0 にフォールバック（安全装置）
-        s_list_safe = [s if s >= 0 else 0 for s in s_list]
-
         # 3. ParallelVirtualNumberPlayers
         try:
             M_hat_list, j_list = self.parallel_virtual_number_players(
-                runner, good_arms, s_list_safe, tau
+                runner, good_arms, s_list, tau
             )
         except HorizonReached:
             pass
@@ -918,12 +921,6 @@ class HomogeneousMultiChannelIzumi2026:
           C_assign = C_accept - G（good arms を通信チャンネルとして除外）
           rank が高い player（j が大きい）から C_assign の先頭を割り当てる
 
-        フォールバック（簡略実装）:
-          good arms が top-M arm になった場合（C_assign が空の場合）、
-          C_accept 全体（good arms を含む）からフォールバック割当を行う。
-          これは論文の C_assign 除外が通常ケース（good arms ≠ top-M）を想定しており、
-          good arms が top-M の場合の安全装置として追加している。
-
         論文の変数対応:
           論文 M_active - j + 1 (1-based position) → 実装 idx = M_active - j (0-based)
           割当条件: M_active - j + 1 <= |C_assign| → 0 <= idx < len(C_assign)
@@ -944,20 +941,64 @@ class HomogeneousMultiChannelIzumi2026:
         # 0-based index: j=M_active が idx=0（最初の腕）、j=1 が idx=M_active-1（最後の腕）
         idx = M_active - j
 
-        # 試み 1: good arms を除いた C_assign から割り当てる（論文に従う通常ケース）
+        # good arms を除いた C_assign からのみ割り当てる（論文に従う通常経路）
         if 0 <= idx < len(C_assign):
             return C_assign[idx]
 
-        # 試み 2: accepted な good arms から割り当てる（good arms が top-M になった場合のフォールバック）
-        # 論文の想定（good arms ≠ top-M arms）が成立しないレアケースへの安全装置。
-        # C_assign を埋めた後の残りスロットに good arms を割り当てる。
-        # これにより C_assign と重複しない割当が保証される。
+        return -1
+
+    def _try_assign_with_accepted_good_arm_fallback(
+        self,
+        j: int,
+        good_arms: List[int],
+        M_active: int,
+        C_accept: List[int],
+    ) -> int:
+        """
+        accepted good arms も割当候補に含める旧実験用 fallback。
+
+        現在の論文再現経路からは呼び出さない。good arms が top-M に含まれる
+        ケースを簡略実装で完走させるために使っていた処理を、将来の比較用に残す。
+        """
+        assigned = self._try_assign(j, good_arms, M_active, C_accept)
+        if assigned >= 0:
+            return assigned
+
+        good_set = set(good_arms)
+        C_assign = [a for a in C_accept if a not in good_set]
+        idx = M_active - j
         G_accept = [a for a in C_accept if a in good_set]
         idx_good = idx - len(C_assign)  # good arms 枠内での 0-based index
         if 0 <= idx_good < len(G_accept):
             return G_accept[idx_good]
 
         return -1
+
+    def _fallback_assign_remaining_accepts(
+        self,
+        f: List[int],
+        j_list: List[int],
+        M0: int,
+        C_accept: List[int],
+        assigned_before: set[int],
+    ) -> None:
+        """
+        未使用の accepted arm を未割当 player に補完割当する旧実験用 fallback。
+
+        現在の論文再現経路からは呼び出さない。簡略通信実装で未割当が残る
+        小規模実験を継続させるために使っていた処理を、将来の比較用に隔離して残す。
+        """
+        newly_used = set(a for a in f if a >= 0) - assigned_before
+        remaining_accept = [
+            a for a in C_accept if a not in assigned_before and a not in newly_used
+        ]
+        remaining_players = [
+            m for m in range(self.M) if f[m] == -1 and 1 <= j_list[m] <= M0
+        ]
+        remaining_players.sort(key=lambda m: (j_list[m], m), reverse=True)
+        for m, arm in zip(remaining_players, remaining_accept):
+            f[m] = arm
+            newly_used.add(arm)
 
 
 # ------------------------------------------------------------------

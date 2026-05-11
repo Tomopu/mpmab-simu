@@ -251,7 +251,12 @@ def build_config(args: argparse.Namespace) -> ExperimentConfig:
     K = args.K or base.K
     M = args.M or base.M
     T = args.horizon or base.T
-    means = parse_means(args.means) if args.means else generate_means(K, args.mean_high, args.mean_low)
+    if args.means:
+        means = parse_means(args.means)
+    elif args.K is not None and args.K != base.K:
+        means = generate_means(K, args.mean_high, args.mean_low)
+    else:
+        means = list(base.means)
     if len(means) != K:
         raise ValueError(f"means の長さは K と一致する必要がある。len(means)={len(means)}, K={K}")
     if M >= K:

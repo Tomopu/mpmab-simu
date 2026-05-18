@@ -15,33 +15,28 @@ no-sensing 設定（collision を観測できない）の MPMAB アルゴリズ�
 
 ```
 mpmab-simu/
-├── envs/               # 環境（問題設定）
-│   ├── __init__.py
-│   └── bernoulli_mpmab.py   # BernoulliMPMABEnv, StepResult
-├── algorithms/         # 論文単位のアルゴリズム実装
-│   ├── __init__.py
-│   ├── base.py              # BaseAlgorithm 抽象基底クラス
-│   ├── homogeneous_huang2022.py  # Huang et al. (2022) homogeneous 設定
-│   └── homogeneous_multichannel_izumi2026.py  # Izumi et al. (2026)
-├── core/               # シミュレーション実行エンジン・履歴管理
-│   ├── __init__.py
-│   ├── runner.py            # Runner, HorizonReached
-│   └── trace.py             # Trace, StepRecord
-├── utils/              # 評価指標・可視化ユーティリティ
-│   ├── __init__.py
-│   ├── metrics.py           # compute_metrics
-│   └── plotter.py           # 実験グラフ生成
-├── agents/             # 将来: 単体プレイヤー agent / baseline 用（現在未使用）
-├── experiments/        # 比較実験スクリプト
-│   └── compare_homogeneous.py
+├── simulator/          # シミュレーター本体
+│   ├── envs/           # 環境（問題設定）
+│   ├── core/           # 実行エンジン・履歴管理
+│   ├── algorithms/     # 論文単位のアルゴリズム実装
+│   │   └── homogeneous/
+│   │       ├── huang2022.py
+│   │       ├── izumi2026.py
+│   │       ├── states.py
+│   │       └── math_helpers.py
+│   ├── utils/          # 評価指標・可視化
+│   ├── experiments/    # 比較実験 CLI
+│   └── main.py         # sanity check エントリーポイント
 ├── tests/              # pytest テスト
-│   ├── test_env.py
-│   ├── test_huang2022_initialization.py
-│   └── test_izumi2026_initialization.py
+│   ├── envs/
+│   ├── algorithms/
+│   └── invariants/
 ├── docs/               # 設計資料・実装メモ・擬似コード
-├── papers/             # 参照論文の参考実装
-├── runs/               # 実験ごとの CSV / PNG 出力先（gitignore）
-├── main.py             # sanity check エントリーポイント
+├── papers/             # 参照論文・参考実装（中身は gitignore）
+├── outputs/            # 再生成可能な実験出力（gitignore）
+│   ├── runs/
+│   ├── results/
+│   └── figures/
 └── requirements.txt    # numpy, pandas, matplotlib, pytest
 ```
 
@@ -51,13 +46,13 @@ mpmab-simu/
 pip install -r requirements.txt
 
 # sanity check (K=5, M=2, T=50000)
-python main.py
+python -m simulator.main
 
 # テスト
 python -m pytest tests/ -v
 
 # 比較実験（CSV と PNG を生成）
-python experiments/compare_homogeneous.py --experiment small --trials 20
+python -m simulator.experiments.compare_homogeneous --experiment small --trials 20
 ```
 
 ## 設計方針

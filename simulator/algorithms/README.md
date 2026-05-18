@@ -16,8 +16,14 @@ MPMAB シミュレーターのアルゴリズム実装モジュール。
 |---------|------|
 | `__init__.py` | 実装済みアルゴリズムをエクスポート |
 | `base.py` | `BaseAlgorithm` 抽象基底クラス |
-| `homogeneous/huang2022.py` | Huang et al. (2022) の homogeneous 設定アルゴリズム |
-| `homogeneous/izumi2026.py` | Izumi et al. (2026) の homogeneous multi-channel 設定アルゴリズム |
+| `homogeneous/huang2022/algorithm.py` | Huang et al. (2022) の homogeneous 設定アルゴリズム本体 |
+| `homogeneous/huang2022/phases.py` | Huang 2022 の FindGoodArm / VMC / VNP |
+| `homogeneous/huang2022/exploration.py` | Huang 2022 の DistributedExploration |
+| `homogeneous/huang2022/communication.py` | Huang 2022 の簡略通信・割当 helper |
+| `homogeneous/izumi2026/algorithm.py` | Izumi et al. (2026) の homogeneous multi-channel 設定アルゴリズム本体 |
+| `homogeneous/izumi2026/phases.py` | Izumi 2026 の FindMultipleGoodArms / ParallelVMC / ParallelVNP |
+| `homogeneous/izumi2026/exploration.py` | Izumi 2026 の HierarchicalDistributedExploration |
+| `homogeneous/izumi2026/communication.py` | Izumi 2026 の簡略通信・割当 helper |
 | `homogeneous/states.py` | homogeneous 系アルゴリズムの PlayerState dataclass |
 | `homogeneous/math_helpers.py` | homogeneous 系アルゴリズムの小さな数値 helper |
 

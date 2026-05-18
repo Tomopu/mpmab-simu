@@ -20,12 +20,27 @@ mpmab-simu/
 │   ├── core/           # 実行エンジン・履歴管理
 │   ├── algorithms/     # 論文単位のアルゴリズム実装
 │   │   └── homogeneous/
-│   │       ├── huang2022.py
-│   │       ├── izumi2026.py
+│   │       ├── huang2022/
+│   │       │   ├── algorithm.py       # Huang 2022 のクラス本体・run()
+│   │       │   ├── phases.py          # FindGoodArm / VMC / VNP
+│   │       │   ├── exploration.py     # DistributedExploration
+│   │       │   ├── communication.py   # 簡略通信・割当 helper
+│   │       │   └── results.py         # PlayerState への変換
+│   │       ├── izumi2026/
+│   │       │   ├── algorithm.py       # Izumi 2026 のクラス本体・run()
+│   │       │   ├── phases.py          # FindMultipleGoodArms / ParallelVMC / ParallelVNP
+│   │       │   ├── exploration.py     # HierarchicalDistributedExploration
+│   │       │   ├── communication.py   # 簡略通信・割当 helper
+│   │       │   └── results.py         # PlayerStateIzumi への変換
 │   │       ├── states.py
 │   │       └── math_helpers.py
 │   ├── utils/          # 評価指標・可視化
-│   ├── experiments/    # 比較実験 CLI
+│   ├── experiments/    # 比較実験
+│   │   ├── compare_homogeneous.py     # CLI
+│   │   ├── configs.py                 # preset・CLI 上書き設定
+│   │   ├── run_homogeneous.py         # trial 実行・retry・集計行生成
+│   │   └── io.py                      # 出力先作成・設定保存・集計表示
+│   ├── agents/         # 将来の player agent / baseline 用（現在は予約）
 │   └── main.py         # sanity check エントリーポイント
 ├── tests/              # pytest テスト
 │   ├── envs/
@@ -61,3 +76,5 @@ python -m simulator.experiments.compare_homogeneous --experiment small --trials 
 - no-sensing: collision flag はアルゴリズムの意思決定に渡さない。
 - 各ステップの記録は `Trace` に積み、`to_dataframe()` で pandas DataFrame として取得できる。
 - 再現性のため、確率的処理はすべて seed を受け取る。
+- 論文アルゴリズムは `algorithm.py` を入口にし、初期化フェーズ・探索フェーズ・通信 helper を分ける。
+- 比較実験は CLI、設定、実行、I/O を分け、実験追加時に `run_homogeneous.py` へ処理が集中しすぎないようにする。

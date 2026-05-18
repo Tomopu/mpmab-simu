@@ -10,9 +10,12 @@
 
 ## 主要ファイル
 
-| スクリプト | 内容 |
-|-----------|------|
-| `compare_homogeneous.py` | Huang 2022 vs Izumi 2026 の cumulative regret 比較 |
+| ファイル | 内容 |
+|--------|------|
+| `compare_homogeneous.py` | Huang 2022 vs Izumi 2026 の cumulative regret 比較 CLI |
+| `configs.py` | 実験 preset と CLI 上書き設定の構築 |
+| `run_homogeneous.py` | trial 実行、retry、summary/curve 行の生成 |
+| `io.py` | run ディレクトリ作成、設定保存、CLI 集計表示 |
 
 ### `compare_homogeneous.py`
 

@@ -6,8 +6,23 @@ __pycache__/
 outputs/results/*.csv
 outputs/figures/*.png
 outputs/runs/
+!outputs/
+!outputs/README.md
+!outputs/results/
+outputs/results/**
+!outputs/results/README.md
+!outputs/figures/
+outputs/figures/**
+!outputs/figures/README.md
+!outputs/runs/
+outputs/runs/**
+!outputs/runs/README.md
 
 papers/(2020) An Optimal Algorithm for Multiplayer Multi-Armed Bandits/*
+!papers/(2020) An Optimal Algorithm for Multiplayer Multi-Armed Bandits/README.md
 papers/(2021) Heterogeneous Multi-player Multi-armed Bandits Closing the Gap and Generalization/*
+!papers/(2021) Heterogeneous Multi-player Multi-armed Bandits Closing the Gap and Generalization/README.md
 papers/(2022) Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information/*
+!papers/(2022) Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information/README.md
 papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/*
+!papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/README.md

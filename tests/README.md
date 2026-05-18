@@ -4,17 +4,19 @@ pytest によるユニットテストを置くディレクトリ。
 
 ## 役割
 
-- 環境（`envs/`）とアルゴリズム（`algorithms/`）の動作を確認する。
+- 環境（`simulator/envs/`）とアルゴリズム（`simulator/algorithms/`）の動作を確認する。
 - 確率的テストは seed を固定して再現性を保証する。
-- 実験スクリプト（`experiments/`）のテストはここには置かず、スクリプト内の sanity check で代替する。
+- テスト本文は原則 `# Given` / `# When` / `# Then` の順に整理する。
+- 実験スクリプト（`simulator/experiments/`）のテストはここには置かず、スクリプト内の sanity check で代替する。
 
 ## テストファイル
 
 | ファイル | 対象 | テスト数 |
 |---------|------|---------|
-| `test_env.py` | `BernoulliMPMABEnv` | 11 |
-| `test_huang2022_initialization.py` | `HomogeneousHuang2022` の初期化フェーズ | 7 |
-| `test_izumi2026_initialization.py` | `HomogeneousMultiChannelIzumi2026` の初期化フェーズ | 16 |
+| `envs/test_env.py` | `BernoulliMPMABEnv` | 11 |
+| `algorithms/test_huang2022_initialization.py` | `HomogeneousHuang2022` の初期化フェーズ | 8 |
+| `algorithms/test_izumi2026_initialization.py` | `HomogeneousMultiChannelIzumi2026` の初期化フェーズ | 17 |
+| `invariants/test_paper_invariants.py` | 論文再現に必要な初期化不変条件 | 2 |
 
 ### 実行方法
 

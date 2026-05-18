@@ -17,10 +17,12 @@ HomogeneousMultiChannelIzumi2026 の初期化フェーズのテスト。
 import math
 import pytest
 
-from envs.bernoulli_mpmab import BernoulliMPMABEnv
-from algorithms.homogeneous_huang2022 import HomogeneousHuang2022
-from algorithms.homogeneous_multichannel_izumi2026 import HomogeneousMultiChannelIzumi2026
-from core.runner import Runner, HorizonReached
+from simulator.envs.bernoulli_mpmab import BernoulliMPMABEnv
+from simulator.algorithms.homogeneous import (
+    HomogeneousHuang2022,
+    HomogeneousMultiChannelIzumi2026,
+)
+from simulator.core.runner import Runner, HorizonReached
 
 
 # テスト用の小規模設定
@@ -51,33 +53,42 @@ class TestFindMultipleGoodArms:
 
     def test_returns_n_arms(self):
         """FindMultipleGoodArms が n 本の arm を返すこと。"""
+        # Given
         env, runner = make_env_and_runner(seed=0)
         algo = make_algo(n=N_GOOD, seed=0)
 
+        # When
         good_arms, mu_tilde_map = algo.find_multiple_good_arms(runner)
 
+        # Then
         assert len(good_arms) == N_GOOD, (
             f"good_arms の本数が {N_GOOD} でない: {good_arms}"
         )
 
     def test_returns_positive_mean_arms(self):
         """FindMultipleGoodArms が返す arm の真の平均報酬が正であること。"""
+        # Given
         env, runner = make_env_and_runner(seed=1)
         algo = make_algo(n=N_GOOD, seed=1)
 
+        # When
         good_arms, mu_tilde_map = algo.find_multiple_good_arms(runner)
 
+        # Then
         for k in good_arms:
             assert 0 <= k < K, f"arm index {k} が範囲外"
             assert MEANS[k] > 0, f"arm {k} の真の平均報酬が 0: means={MEANS[k]}"
 
     def test_mu_tilde_lower_bounds(self):
         """FindMultipleGoodArms の mu_tilde が実際の arm 平均報酬以下（下界）であること。"""
+        # Given
         env, runner = make_env_and_runner(seed=2)
         algo = make_algo(n=N_GOOD, seed=2)
 
+        # When
         good_arms, mu_tilde_map = algo.find_multiple_good_arms(runner)
 
+        # Then
         for k in good_arms:
             assert k in mu_tilde_map, f"arm {k} の mu_tilde が記録されていない"
             assert mu_tilde_map[k] <= MEANS[k] + 1e-9, (
@@ -86,11 +97,14 @@ class TestFindMultipleGoodArms:
 
     def test_arms_are_unique(self):
         """FindMultipleGoodArms が重複のない arm set を返すこと。"""
+        # Given
         env, runner = make_env_and_runner(seed=3)
         algo = make_algo(n=N_GOOD, seed=3)
 
+        # When
         good_arms, _ = algo.find_multiple_good_arms(runner)
 
+        # Then
         assert len(good_arms) == len(set(good_arms)), (
             f"good_arms に重複がある: {good_arms}"
         )
@@ -112,6 +126,7 @@ class TestParallelVirtualMusicalChairs:
         二度引かない」ではなく「同一時刻に複数 pull しない」なので、Trace の
         各 record が player ごとに単一 action を持つことを検証する。
         """
+        # Given
         env, runner = make_env_and_runner(seed=10)
         algo = make_algo(n=N_GOOD, seed=10)
 
@@ -123,8 +138,10 @@ class TestParallelVirtualMusicalChairs:
         # phase を PVMC に切り替えて steps を記録する
         start_steps = runner.elapsed
 
+        # When
         algo.parallel_virtual_musical_chairs(runner, good_arms, tau)
 
+        # Then
         # Trace から PVMC フェーズの各ステップを取得する
         records = runner.trace.to_records()
         pvmc_records = [
@@ -141,6 +158,7 @@ class TestParallelVirtualMusicalChairs:
 
     def test_rank_assignment(self):
         """ParallelVirtualMusicalChairs 後に少なくとも 1 人が rank を得ること。"""
+        # Given
         env, runner = make_env_and_runner(seed=11)
         algo = make_algo(n=N_GOOD, seed=11)
 
@@ -148,15 +166,20 @@ class TestParallelVirtualMusicalChairs:
         mu_min = min(mu_tilde_map.values())
         tau = math.ceil(math.log(1.0 / DELTA) / max(mu_min, 1e-12))
 
+        # When
         s_list = algo.parallel_virtual_musical_chairs(runner, good_arms, tau)
 
+        # Then
         assigned = [s for s in s_list if s >= 0]
         assert len(assigned) >= 1, f"1 人も rank を得ていない: {s_list}"
 
     def test_ranks_tend_to_be_unique(self):
         """複数試行で rank 重複が減る傾向があること（確率的テスト）。"""
+        # Given
         successes = 0
         n_trials = 10
+
+        # When
         for seed in range(n_trials):
             env, runner = make_env_and_runner(seed=seed)
             algo = make_algo(n=N_GOOD, seed=seed)
@@ -171,6 +194,7 @@ class TestParallelVirtualMusicalChairs:
             except HorizonReached:
                 pass
 
+        # Then
         assert successes >= n_trials // 2, (
             f"rank 重複なし率が低すぎる: {successes}/{n_trials}"
         )
@@ -190,6 +214,7 @@ class TestParallelVirtualNumberPlayers:
         ParallelVNP の各 h ループの K スロット内で、同一プレイヤーが
         good arm を 2 回以上引かないことを Trace から検証する。
         """
+        # Given
         env, runner = make_env_and_runner(seed=20)
         algo = make_algo(n=N_GOOD, seed=20)
 
@@ -199,8 +224,10 @@ class TestParallelVirtualNumberPlayers:
         s_list = algo.parallel_virtual_musical_chairs(runner, good_arms, tau)
         s_list_safe = [s if s >= 0 else 0 for s in s_list]
 
+        # When
         algo.parallel_virtual_number_players(runner, good_arms, s_list_safe, tau)
 
+        # Then
         # PVNP のフェーズレコードを取得する
         records = runner.trace.to_records()
         pvnp_records = [
@@ -226,6 +253,7 @@ class TestParallelVirtualNumberPlayers:
 
     def test_m_hat_plausible(self):
         """ParallelVirtualNumberPlayers の M_hat が 1 以上 K 以下であること。"""
+        # Given
         env, runner = make_env_and_runner(seed=21)
         algo = make_algo(n=N_GOOD, seed=21)
 
@@ -235,10 +263,12 @@ class TestParallelVirtualNumberPlayers:
         s_list = algo.parallel_virtual_musical_chairs(runner, good_arms, tau)
         s_list_safe = [s if s >= 0 else 0 for s in s_list]
 
+        # When
         M_hat_list, j_list = algo.parallel_virtual_number_players(
             runner, good_arms, s_list_safe, tau
         )
 
+        # Then
         for m in range(M):
             assert 1 <= M_hat_list[m] <= K, (
                 f"player {m} の M_hat={M_hat_list[m]} が範囲外"
@@ -257,12 +287,15 @@ class TestFullRunIzumi:
 
     def test_assigned_arms_no_duplicate(self):
         """run() 後に全プレイヤーの assigned_arm が重複しないこと。"""
+        # Given
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
 
+        # When
         result = algo.run(runner)
         player_states = result["player_states"]
 
+        # Then
         assigned = [ps.assigned_arm for ps in player_states if ps.assigned_arm >= 0]
         assert len(assigned) == len(set(assigned)), (
             f"assigned_arm に重複がある: {assigned}"
@@ -270,13 +303,16 @@ class TestFullRunIzumi:
 
     def test_assignment_failure_is_exposed_without_fallback(self):
         """fallback を使わず、未割当がある場合はそのまま観測できること。"""
+        # Given
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
 
+        # When
         result = algo.run(runner)
         player_states = result["player_states"]
         assigned = [ps.assigned_arm for ps in player_states]
 
+        # Then
         assert any(a == -1 for a in assigned), (
             "fallback を外した設定では、この seed の未割当を隠さず返す"
         )
@@ -287,12 +323,15 @@ class TestFullRunIzumi:
 
     def test_phase_durations_recorded(self):
         """フェーズごとの所要ステップ数が記録されていること。"""
+        # Given
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
 
+        # When
         result = algo.run(runner)
         durations = result["phase_durations"]
 
+        # Then
         assert any("find_multiple_good_arms" in k for k in durations), (
             "find_multiple_good_arms フェーズが記録されていない"
         )
@@ -305,12 +344,15 @@ class TestFullRunIzumi:
 
     def test_good_arms_recorded_in_player_state(self):
         """PlayerStateIzumi に good_arms が記録されていること。"""
+        # Given
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
 
+        # When
         result = algo.run(runner)
         player_states = result["player_states"]
 
+        # Then
         for i, ps in enumerate(player_states):
             assert len(ps.good_arms) == N_GOOD, (
                 f"player {i} の good_arms 本数が {N_GOOD} でない: {ps.good_arms}"
@@ -322,6 +364,7 @@ class TestFullRunIzumi:
 
     def test_three_players_failure_is_exposed_without_fallback(self):
         """M=3, n=2 でも補完割当で未完成状態を隠さないこと。"""
+        # Given
         means = [0.9, 0.8, 0.7, 0.2, 0.1, 0.05]
         env = BernoulliMPMABEnv(means=means, num_players=3, seed=7)
         runner = Runner(env=env, horizon=2_000_000)
@@ -329,9 +372,11 @@ class TestFullRunIzumi:
             K=6, M=3, n=2, delta=DELTA, seed=7
         )
 
+        # When
         result = algo.run(runner)
         assigned = [ps.assigned_arm for ps in result["player_states"]]
 
+        # Then
         assert any(a == -1 for a in assigned), (
             f"fallback なしの未割当状態が観測できない: {assigned}"
         )
@@ -355,12 +400,15 @@ class TestN1Compatibility:
         n=1 は good arm 1 本のみを通信チャンネルとして使う Huang 2022 類似ケース。
         good arm が accept された場合は leader に割り当てる必要がある。
         """
+        # Given
         env_izumi, runner_izumi = make_env_and_runner(seed=100)
         algo_izumi = make_algo(n=1, seed=100)
 
+        # When
         result_izumi = algo_izumi.run(runner_izumi)
         ps_izumi = result_izumi["player_states"]
 
+        # Then
         assigned_izumi = [ps.assigned_arm for ps in ps_izumi]
         assert all(a >= 0 for a in assigned_izumi), (
             f"n=1 Izumi 2026: 未割当プレイヤーが存在する: {assigned_izumi}"
@@ -370,9 +418,12 @@ class TestN1Compatibility:
         """
         n=1 の Izumi 2026 と Huang 2022 がどちらも割当成功すること（同一 seed）。
         """
+        # Given
         # Huang 2022
         env_h, runner_h = make_env_and_runner(seed=200)
         algo_h = HomogeneousHuang2022(K=K, M=M, delta=DELTA, seed=200)
+
+        # When
         result_h = algo_h.run(runner_h)
         ps_h = result_h["player_states"]
         huang_success = all(ps.assigned_arm >= 0 for ps in ps_h)
@@ -386,6 +437,7 @@ class TestN1Compatibility:
         izumi_success = all(ps.assigned_arm >= 0 for ps in ps_i)
         izumi_no_dup = len(set(ps.assigned_arm for ps in ps_i)) == M
 
+        # Then
         # Huang が成功した場合、n=1 Izumi も Huang 型の good arm leader 割当で成功する。
         if huang_success and huang_no_dup:
             assert izumi_success, (
@@ -399,12 +451,15 @@ class TestN1Compatibility:
 
     def test_n1_no_duplicate_assignment(self):
         """n=1 の Izumi 2026 で assigned_arm に重複がないこと。"""
+        # Given
         env, runner = make_env_and_runner(seed=300)
         algo = make_algo(n=1, seed=300)
 
+        # When
         result = algo.run(runner)
         player_states = result["player_states"]
 
+        # Then
         assigned = [ps.assigned_arm for ps in player_states if ps.assigned_arm >= 0]
         assert len(assigned) == len(set(assigned)), (
             f"n=1 Izumi 2026: assigned_arm に重複がある: {assigned}"

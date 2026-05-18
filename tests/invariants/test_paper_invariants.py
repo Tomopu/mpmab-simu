@@ -7,14 +7,17 @@ delta は論文保証が働きやすいよう、既存の高速テストより�
 
 import math
 
-from algorithms.homogeneous_huang2022 import HomogeneousHuang2022
-from algorithms.homogeneous_multichannel_izumi2026 import HomogeneousMultiChannelIzumi2026
-from core.runner import Runner
-from envs.bernoulli_mpmab import BernoulliMPMABEnv
+from simulator.algorithms.homogeneous import (
+    HomogeneousHuang2022,
+    HomogeneousMultiChannelIzumi2026,
+)
+from simulator.core.runner import Runner
+from simulator.envs.bernoulli_mpmab import BernoulliMPMABEnv
 
 
 def test_huang_vnp_outputs_permutation_rank_without_normalization():
     """Huang 2022 VNP が M_hat=M と j=1..M の permutation を返すこと。"""
+    # Given
     K = 6
     M = 3
     delta = 0.01
@@ -24,12 +27,14 @@ def test_huang_vnp_outputs_permutation_rank_without_normalization():
     runner = Runner(env=env, horizon=2_000_000)
     algo = HomogeneousHuang2022(K=K, M=M, delta=delta, seed=0)
 
+    # When
     k_tilde, mu_tilde = algo.find_good_arm(runner)
     tau_rank = math.ceil(K * math.log(1.0 / delta) / max(mu_tilde, 1e-12))
     tau_comm = math.ceil(math.log(1.0 / delta) / max(mu_tilde, 1e-12))
     s_list = algo.virtual_musical_chairs(runner, k_tilde, tau_rank)
     M_hat_list, j_list = algo.virtual_number_players(runner, k_tilde, s_list, tau_comm)
 
+    # Then
     assert all(s >= 0 for s in s_list)
     assert len(set(s_list)) == M
     assert M_hat_list == [M] * M
@@ -38,6 +43,7 @@ def test_huang_vnp_outputs_permutation_rank_without_normalization():
 
 def test_izumi_parallel_vnp_outputs_permutation_rank_without_normalization():
     """Izumi 2026 ParallelVNP が M_hat=M と j=1..M の permutation を返すこと。"""
+    # Given
     K = 6
     M = 3
     n = 2
@@ -48,6 +54,7 @@ def test_izumi_parallel_vnp_outputs_permutation_rank_without_normalization():
     runner = Runner(env=env, horizon=2_000_000)
     algo = HomogeneousMultiChannelIzumi2026(K=K, M=M, n=n, delta=delta, seed=0)
 
+    # When
     good_arms, mu_tilde_map = algo.find_multiple_good_arms(runner)
     tau = math.ceil(
         math.log(1.0 / delta) / max(min(mu_tilde_map.values()), 1e-12)
@@ -57,6 +64,7 @@ def test_izumi_parallel_vnp_outputs_permutation_rank_without_normalization():
         runner, good_arms, s_list, tau
     )
 
+    # Then
     assert all(s >= 0 for s in s_list)
     assert len(set(s_list)) == M
     assert M_hat_list == [M] * M

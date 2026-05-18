@@ -115,27 +115,31 @@ class HomogeneousMultiChannelIzumi2026(
             # FindMultipleGoodArms すら完了しなかった場合はそのまま返す
             return build_result(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner)
 
-        # tau = ceil(ln(1/delta) / min(mu_tilde)) の計算
+        # tau の計算
         # 論文: tilde_mu_min <- min_{k in G} tilde_mu[k]
         mu_min = min(mu_tilde_map.get(k, 1e-12) for k in good_arms)
         mu_safe = max(mu_min, 1e-12)
-        tau = _ceil(_ln(1.0 / delta) / mu_safe)
+        # tau_rank = ceil(K * ln(1/delta) / mu_safe): ParallelVMC に渡す τ
+        # Huang2022 と同じ式。ParallelVMC 総ステップ = ceil(K * tau_rank / n) で n 倍高速化。
+        tau_rank = _ceil(self.K * _ln(1.0 / delta) / mu_safe)
+        # tau_comm = ceil(ln(1/delta) / mu_safe): VNP・HDE に渡す τ
+        tau_comm = _ceil(_ln(1.0 / delta) / mu_safe)
 
         # 2. ParallelVirtualMusicalChairs
         try:
-            s_list = self.parallel_virtual_musical_chairs(runner, good_arms, tau)
+            s_list = self.parallel_virtual_musical_chairs(runner, good_arms, tau_rank)
         except HorizonReached:
             pass
 
         # 3. ParallelVirtualNumberPlayers
         try:
-            M_hat_list, j_list = self.parallel_virtual_number_players(runner, good_arms, s_list, tau)
+            M_hat_list, j_list = self.parallel_virtual_number_players(runner, good_arms, s_list, tau_comm)
         except HorizonReached:
             pass
 
         # 4. HierarchicalDistributedExploration
         try:
-            f_list = self.hierarchical_distributed_exploration(runner, good_arms, j_list, M_hat_list, tau)
+            f_list = self.hierarchical_distributed_exploration(runner, good_arms, j_list, M_hat_list, tau_comm)
         except HorizonReached:
             pass
 

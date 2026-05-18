@@ -14,7 +14,9 @@
 - Python 実装では arm/player index を 0-based に統一する。
 - このファイルでは `data.tex` に記述された parallel 版の擬似コードだけを扱う。
 - `HierarchicalDistributedExploration` の `ComGrandLeader`, `ComSubLeader`, `ComFollower` は `data.tex` では詳細省略されているため、初回実装では通信時間コストと集約結果を明示的にシミュレートする。
-- `tau` は TeX 上の括弧が曖昧なので、2022 版との対応を優先して `ceil(log(1 / delta) / min(mu_tilde))` として実装する。
+- `tau` は TeX 上の括弧が曖昧で、論文の ProposedParallelAlgorithm に記載された式は誤りを含む（後述）。正しくは以下の 2 種類を使い分ける:
+  - `tau_rank = ceil(K * log(1/delta) / min(mu_tilde))`: ParallelVirtualMusicalChairs に渡す
+  - `tau_comm = ceil(log(1/delta) / min(mu_tilde))`: ParallelVirtualNumberPlayers・HierarchicalDistributedExploration に渡す
 - multi-channel 版では、同一 player が同一時刻に複数 arm を pull しない制約を必ずテストする。
 
 ## Extracted TeX Pseudocode
@@ -229,6 +231,11 @@ Source lines: `papers/(2026) Multi-Channel Communication Algorithm for Multi-Pla
       \STATE $s \gets \texttt{ParallelVirtualMusicalChairs}(K, \mathcal{G}, \tau)$
       \STATE $(\hat{M}, j) \gets \texttt{ParallelVirtualNumberPlayers}(K, \mathcal{G}, s, \tau)$
       \STATE $\bar{k} \gets \texttt{HierarchicalDistributedExploration}(K, j, \hat{M}, \mathcal{G}, \tau)$
+   % ^^^ 論文の誤り: τ を全フェーズ共通で使っているが、正しくは以下の通り:
+   %   tau_rank = ceil(K * ln(1/delta) / mu_min)  → ParallelVirtualMusicalChairs に渡す
+   %   tau_comm = ceil(ln(1/delta) / mu_min)       → ParallelVirtualNumberPlayers・HierarchicalDistributedExploration に渡す
+   % n=1 のとき tau_rank を使った ParallelVMC 総ステップ ceil(K * tau_rank / 1) が
+   % Huang2022 VirtualMusicalChairs の K * tau_rank と一致し、n 倍高速化が正しく成立する。
    \end{algorithmic}
 \end{algorithm}
 ```

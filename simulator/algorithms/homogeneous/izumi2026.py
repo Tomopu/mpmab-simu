@@ -36,54 +36,17 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from core.runner import Runner, HorizonReached
-
-
-# ------------------------------------------------------------------
-# ユーティリティ
-# ------------------------------------------------------------------
-
-
-def _ceil(x: float) -> int:
-    """math.ceil の int 変換版。"""
-    return int(math.ceil(x))
-
-
-def _ln(x: float) -> float:
-    """自然対数（引数チェック付き）。"""
-    if x <= 0.0:
-        raise ValueError(f"log の引数は正でなければならない。got {x}")
-    return math.log(x)
+from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
+from simulator.algorithms.homogeneous.math_helpers import ceil_int as _ceil
+from simulator.algorithms.homogeneous.states import PlayerStateIzumi
+from simulator.core.runner import Runner, HorizonReached
 
 
 # ------------------------------------------------------------------
 # Izumi 2026 本体
 # ------------------------------------------------------------------
-
-
-@dataclass
-class PlayerStateIzumi:
-    """
-    各プレイヤーの初期化フェーズ終了時の状態サマリー（Izumi 2026 版）。
-
-    Attributes:
-        external_rank_s: ParallelVirtualMusicalChairs の出力 s（0-based, 論文 s-1 に対応）
-        internal_rank_j: ParallelVirtualNumberPlayers の出力 j（1-based, 論文と同じ）
-        M_hat: 推定プレイヤー数
-        good_arms: FindMultipleGoodArms の出力（0-based arm index のリスト）
-        mu_tilde_min: good_arms 中の最小報酬下界
-        assigned_arm: HierarchicalDistributedExploration の出力（0-based, 未割当は -1）
-    """
-
-    external_rank_s: int
-    internal_rank_j: int
-    M_hat: int
-    good_arms: List[int]
-    mu_tilde_min: float
-    assigned_arm: int
 
 
 class HomogeneousMultiChannelIzumi2026:

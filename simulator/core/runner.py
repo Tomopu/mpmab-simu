@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from envs.bernoulli_mpmab import BernoulliMPMABEnv, StepResult
-from core.trace import Trace
+from simulator.envs.bernoulli_mpmab import BernoulliMPMABEnv, StepResult
+from simulator.core.trace import Trace
 
 
 class HorizonReached(Exception):

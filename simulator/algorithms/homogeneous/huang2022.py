@@ -32,54 +32,17 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from core.runner import Runner, HorizonReached
-
-
-# ------------------------------------------------------------------
-# ユーティリティ
-# ------------------------------------------------------------------
-
-
-def _ceil(x: float) -> int:
-    """math.ceil の int 変換版。"""
-    return int(math.ceil(x))
-
-
-def _ln(x: float) -> float:
-    """自然対数（引数チェック付き）。"""
-    if x <= 0.0:
-        raise ValueError(f"log の引数は正でなければならない。got {x}")
-    return math.log(x)
+from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
+from simulator.algorithms.homogeneous.math_helpers import ceil_int as _ceil
+from simulator.algorithms.homogeneous.states import PlayerState
+from simulator.core.runner import Runner, HorizonReached
 
 
 # ------------------------------------------------------------------
 # Huang 2022 本体
 # ------------------------------------------------------------------
-
-
-@dataclass
-class PlayerState:
-    """
-    各プレイヤーの初期化フェーズ終了時の状態サマリー。
-
-    Attributes:
-        external_rank_s: VirtualMusicalChairs の出力 s（0-based, 論文の s-1 に対応）
-        internal_rank_j: VirtualNumberPlayers の出力 j（1-based, 論文と同じ）
-        M_hat: 推定プレイヤー数
-        good_arm: FindGoodArm の出力 k_tilde（0-based）
-        mu_tilde: good_arm の報酬下界
-        assigned_arm: DistributedExploration の出力（0-based, 未割当は -1）
-    """
-
-    external_rank_s: int
-    internal_rank_j: int
-    M_hat: int
-    good_arm: int
-    mu_tilde: float
-    assigned_arm: int
 
 
 class HomogeneousHuang2022:

@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from core.runner import Runner
+from simulator.core.runner import Runner
 
 
 class BaseAlgorithm(ABC):

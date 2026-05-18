@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from core.trace import Trace
+from simulator.core.trace import Trace
 
 
 def compute_metrics(

@@ -2,14 +2,14 @@
 Huang 2022 と Izumi 2026 homogeneous 設定の比較実験。
 
 実行例:
-    python experiments/compare_homogeneous.py --experiment small --trials 20
-    python experiments/compare_homogeneous.py --experiment speedup --trials 50
+    python -m simulator.experiments.compare_homogeneous --experiment small --trials 20
+    python -m simulator.experiments.compare_homogeneous --experiment speedup --trials 50
 
 出力:
-    runs/<YYYYMMDD_HHMMSS>_<experiment>/summary.csv
-    runs/<YYYYMMDD_HHMMSS>_<experiment>/curves.csv
-    runs/<YYYYMMDD_HHMMSS>_<experiment>/*.png
-    runs/<YYYYMMDD_HHMMSS>_<experiment>/run_config.json
+    outputs/runs/<YYYYMMDD_HHMMSS>_<experiment>/summary.csv
+    outputs/runs/<YYYYMMDD_HHMMSS>_<experiment>/curves.csv
+    outputs/runs/<YYYYMMDD_HHMMSS>_<experiment>/*.png
+    outputs/runs/<YYYYMMDD_HHMMSS>_<experiment>/run_config.json
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -25,14 +24,12 @@ from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-from algorithms import HomogeneousHuang2022, HomogeneousMultiChannelIzumi2026
-from core.runner import Runner
-from envs import BernoulliMPMABEnv
-from utils import compute_metrics, save_metric_bar, save_regret_curve
+from simulator.algorithms import HomogeneousHuang2022, HomogeneousMultiChannelIzumi2026
+from simulator.core.runner import Runner
+from simulator.envs import BernoulliMPMABEnv
+from simulator.utils import compute_metrics, save_metric_bar, save_regret_curve
 
 
 @dataclass(frozen=True)
@@ -193,7 +190,7 @@ def main() -> None:
     parser.add_argument(
         "--output-root",
         type=str,
-        default="runs",
+        default="outputs/runs",
         help="実験 run ディレクトリを作成する親ディレクトリ。",
     )
     args = parser.parse_args()
@@ -201,7 +198,7 @@ def main() -> None:
         raise ValueError("--max-attempts は 1 以上にしてください。")
 
     config = build_config(args)
-    run_dir = create_run_dir(ROOT / args.output_root, config.name)
+    run_dir = create_run_dir(PROJECT_ROOT / args.output_root, config.name)
 
     summary_rows: List[Dict[str, object]] = []
     curve_rows: List[Dict[str, object]] = []

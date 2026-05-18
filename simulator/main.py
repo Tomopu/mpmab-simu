@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import math
 
-from envs.bernoulli_mpmab import BernoulliMPMABEnv
-from algorithms.homogeneous_huang2022 import HomogeneousHuang2022
-from algorithms.homogeneous_multichannel_izumi2026 import HomogeneousMultiChannelIzumi2026
-from core.runner import Runner
-from utils.metrics import compute_metrics
+from simulator.envs.bernoulli_mpmab import BernoulliMPMABEnv
+from simulator.algorithms.homogeneous import (
+    HomogeneousHuang2022,
+    HomogeneousMultiChannelIzumi2026,
+)
+from simulator.core.runner import Runner
+from simulator.utils.metrics import compute_metrics
 
 
 # 共通設定

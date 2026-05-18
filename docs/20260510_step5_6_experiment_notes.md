@@ -8,23 +8,23 @@
 
 | Path | 内容 |
 |------|------|
-| `experiments/compare_homogeneous.py` | Huang 2022 と Izumi 2026 を同一 homogeneous 設定で比較し、CSV と PNG を出力する CLI |
-| `utils/plotter.py` | cumulative regret curve と metric bar chart を保存する helper |
+| `simulator/experiments/compare_homogeneous.py` | Huang 2022 と Izumi 2026 を同一 homogeneous 設定で比較し、CSV と PNG を出力する CLI |
+| `simulator/utils/plotter.py` | cumulative regret curve と metric bar chart を保存する helper |
 
 ## 更新ファイル
 
 | Path | 内容 |
 |------|------|
-| `utils/__init__.py` | plotter helper を export |
+| `simulator/utils/__init__.py` | plotter helper を export |
 | `experiments/README.md` | 実験スクリプトの実行方法と出力仕様を更新 |
-| `utils/README.md` | `plotter.py` の説明を追加 |
+| `simulator/utils/README.md` | `plotter.py` の説明を追加 |
 | `README.md` | Step 4〜6 の実装状況と実験コマンドを追加 |
 | `.gitignore` | 再生成可能な `runs/` を除外 |
 
 ## 実験コマンド
 
 ```bash
-python experiments/compare_homogeneous.py --experiment small --trials 20
+python simulator/experiments/compare_homogeneous.py --experiment small --trials 20
 ```
 
 利用できる設定:
@@ -74,7 +74,7 @@ runs/YYYYMMDD_HHMMSS_<experiment>_<suffix>/run_config.json
 ### 1. 小規模 sanity check
 
 ```bash
-python experiments/compare_homogeneous.py \
+python simulator/experiments/compare_homogeneous.py \
   --experiment small \
   --trials 20 \
   --sample-points 300
@@ -85,7 +85,7 @@ Huang 2022 と Izumi 2026 (`n=1,2`) を `K=5, M=2, T=50000` で比較する。
 ### 2. arm 数と player 数を変える
 
 ```bash
-python experiments/compare_homogeneous.py \
+python simulator/experiments/compare_homogeneous.py \
   --experiment small \
   --K 7 \
   --M 3 \
@@ -100,7 +100,7 @@ python experiments/compare_homogeneous.py \
 ### 3. 報酬分布を直接指定する
 
 ```bash
-python experiments/compare_homogeneous.py \
+python simulator/experiments/compare_homogeneous.py \
   --experiment small \
   --K 8 \
   --M 3 \
@@ -116,7 +116,7 @@ python experiments/compare_homogeneous.py \
 ### 4. 短い horizon の切り詰め挙動を見る
 
 ```bash
-python experiments/compare_homogeneous.py \
+python simulator/experiments/compare_homogeneous.py \
   --experiment small \
   --horizon 5000 \
   --trials 20 \

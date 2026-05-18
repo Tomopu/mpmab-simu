@@ -10,7 +10,7 @@
 
 ### Step 1: BernoulliMPMABEnv（環境）
 
-#### `envs/bernoulli_mpmab.py`
+#### `simulator/envs/bernoulli_mpmab.py`
 
 - `BernoulliMPMABEnv`: Bernoulli 報酬を持つ MPMAB 環境。
   - `step(actions)`: M 人の action を同時に受け取り、collision 判定と報酬生成を行う。
@@ -22,7 +22,7 @@
   - `actions`, `rewards`, `collisions` は全プレイヤー分のリスト。
   - `collisions` は環境と評価指標での記録専用。no-sensing アルゴリズムには渡さない。
 
-#### `envs/__init__.py`
+#### `simulator/envs/__init__.py`
 
 `BernoulliMPMABEnv` と `StepResult` をエクスポート。
 
@@ -30,7 +30,7 @@
 
 ### Step 2: Runner と Trace
 
-#### `core/trace.py`
+#### `simulator/core/trace.py`
 
 - `StepRecord`: 1 ステップの記録（time, phase, actions, rewards, collisions, 累積報酬/regret）。
 - `Trace`: シミュレーション全体の履歴を保持するクラス。
@@ -40,7 +40,7 @@
   - `to_records()`: 全記録を dict のリストで返す。
   - `to_dataframe()`: pandas DataFrame で返す。
 
-#### `core/runner.py`
+#### `simulator/core/runner.py`
 
 - `HorizonReached`: horizon 到達を通知する例外。
 - `Runner`: 環境との同期インターフェースを担うクラス。
@@ -56,7 +56,7 @@
 
 ### Step 3: HomogeneousHuang2022
 
-#### `algorithms/homogeneous_huang2022.py`
+#### `simulator/algorithms/homogeneous/huang2022/algorithm.py`
 
 論文 Huang et al. (2022) "Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information" の実装。
 
@@ -92,11 +92,11 @@
   - ρ[k] と B[k] を計算して accept/reject 集合を返す。
   - 論文 Algorithm 6 の集約推定と accept/reject 判定に対応。
 
-#### `algorithms/__init__.py`
+#### `simulator/algorithms/__init__.py`
 
 `HomogeneousHuang2022` をエクスポート。
 
-#### `algorithms/base.py`
+#### `simulator/algorithms/base.py`
 
 `BaseAlgorithm` 抽象基底クラス（`run()` メソッドを定義）。
 
@@ -104,14 +104,14 @@
 
 ### その他
 
-#### `utils/metrics.py`
+#### `simulator/simulator/utils/metrics.py`
 
 - `compute_metrics(trace, player_states, means, M)`:
   - Trace と player_states から各種評価指標を計算。
   - cumulative_regret, collision_count, phase_durations などを返す。
   - `player_states` がある場合: rank_assignment_success, player_count_success, final_assignment_success も計算。
 
-#### `main.py`
+#### `simulator/main.py`
 
 小規模 sanity check のエントリーポイント。`K=5, M=2, T=50000` で Huang 2022 を実行して結果を表示。
 
@@ -125,16 +125,16 @@
 
 | 実装内容 | ソースパス |
 |---------|-----------|
-| 環境（MPMAB env） | `envs/bernoulli_mpmab.py` |
-| 環境のエクスポート | `envs/__init__.py` |
-| 履歴記録 | `core/trace.py` |
-| 実行ランナー | `core/runner.py` |
-| アルゴリズム基底クラス | `algorithms/base.py` |
-| Huang 2022 | `algorithms/homogeneous_huang2022.py` |
-| 評価指標 | `utils/metrics.py` |
-| 動作確認スクリプト | `main.py` |
+| 環境（MPMAB env） | `simulator/envs/bernoulli_mpmab.py` |
+| 環境のエクスポート | `simulator/envs/__init__.py` |
+| 履歴記録 | `simulator/core/trace.py` |
+| 実行ランナー | `simulator/core/runner.py` |
+| アルゴリズム基底クラス | `simulator/algorithms/base.py` |
+| Huang 2022 | `simulator/algorithms/homogeneous/huang2022/algorithm.py` |
+| 評価指標 | `simulator/simulator/utils/metrics.py` |
+| 動作確認スクリプト | `simulator/main.py` |
 | テスト: 環境 | `tests/test_env.py` |
-| テスト: Huang 2022 初期化 | `tests/test_huang2022_initialization.py` |
+| テスト: Huang 2022 初期化 | `tests/algorithms/homogeneous/huang2022/` |
 
 ---
 
@@ -156,7 +156,7 @@
 - 実際より少ない phase で accept/reject が確定する可能性がある。
 
 **実装箇所:**  
-`algorithms/homogeneous_huang2022.py` の `distributed_exploration()` コメント「通信の簡略実装」参照。
+`simulator/algorithms/homogeneous/huang2022/algorithm.py` の `distributed_exploration()` コメント「通信の簡略実装」参照。
 
 ### FindGoodArm の T1 式
 
@@ -194,10 +194,10 @@ Step 4〜6 に相当する部分:
    - `parallel_virtual_number_players`
    - `hierarchical_distributed_exploration`
 
-2. **`utils/plotter.py`** (Step 5 の一部)
+2. **`simulator/utils/plotter.py`** (Step 5 の一部)
    - `compare_homogeneous.py` の可視化に必要
 
-3. **`experiments/compare_homogeneous.py`** (Step 6)
+3. **`simulator/experiments/compare_homogeneous.py`** (Step 6)
    - Huang 2022 vs Izumi 2026 の比較実験スクリプト
    - CSV 出力（`results/` 配下）
    - 図の出力（`figures/` 配下）
@@ -217,7 +217,7 @@ Step 4〜6 に相当する部分:
 ### テスト実行コマンド
 
 ```bash
-python -m pytest tests/test_env.py tests/test_huang2022_initialization.py -v
+python -m pytest tests/test_env.py tests/algorithms/homogeneous/huang2022/ -v
 ```
 
 ### 結果
@@ -237,13 +237,13 @@ tests/test_env.py::TestOptimalReward::test_optimal_is_top_m_sum PASSED
 tests/test_env.py::TestOptimalReward::test_instant_regret_nonneg_on_average PASSED
 tests/test_env.py::TestValidation::test_invalid_arm_index PASSED
 tests/test_env.py::TestValidation::test_invalid_actions_length PASSED
-tests/test_huang2022_initialization.py::TestFindGoodArm::test_returns_positive_mean_arm PASSED
-tests/test_huang2022_initialization.py::TestFindGoodArm::test_mu_tilde_is_lower_bound PASSED
-tests/test_huang2022_initialization.py::TestVirtualMusicalChairs::test_rank_assignment PASSED
-tests/test_huang2022_initialization.py::TestVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_assigned_arms_no_duplicate PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_all_players_get_assignment PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_phase_durations_recorded PASSED
+tests/algorithms/homogeneous/huang2022/::TestFindGoodArm::test_returns_positive_mean_arm PASSED
+tests/algorithms/homogeneous/huang2022/::TestFindGoodArm::test_mu_tilde_is_lower_bound PASSED
+tests/algorithms/homogeneous/huang2022/::TestVirtualMusicalChairs::test_rank_assignment PASSED
+tests/algorithms/homogeneous/huang2022/::TestVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_assigned_arms_no_duplicate PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_all_players_get_assignment PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_phase_durations_recorded PASSED
 
 18 passed in 0.19s
 ==============================

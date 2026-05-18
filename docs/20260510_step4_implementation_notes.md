@@ -10,7 +10,7 @@
 
 ### Step 4: HomogeneousMultiChannelIzumi2026
 
-#### `algorithms/homogeneous_multichannel_izumi2026.py`
+#### `simulator/algorithms/homogeneous/izumi2026/algorithm.py`
 
 論文 Izumi et al. (2026) "Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing" の homogeneous 設定実装。
 
@@ -62,15 +62,15 @@
   - `_compute_accept_reject(...)` → `(List[int], List[int])`:
     - Huang 2022 と同一の式を使用（Supplemental Pseudocode AcceptReject に従う）。
 
-#### `algorithms/__init__.py`
+#### `simulator/algorithms/__init__.py`
 
 `HomogeneousMultiChannelIzumi2026`, `PlayerStateIzumi` をエクスポートするよう更新。
 
-#### `utils/metrics.py`
+#### `simulator/simulator/utils/metrics.py`
 
 Izumi 2026 のフェーズ名（`find_multiple_good_arms`, `parallel_virtual_musical_chairs`, `parallel_virtual_number_players`, `hde_phase*`）に対応するようフェーズ集計ロジックを更新。
 
-#### `main.py`
+#### `simulator/main.py`
 
 `run_izumi2026(n)` 関数を追加し、Huang 2022 と Izumi 2026 を同一設定で比較表示するよう更新。
 
@@ -80,11 +80,11 @@ Izumi 2026 のフェーズ名（`find_multiple_good_arms`, `parallel_virtual_mus
 
 | 実装内容 | ソースパス |
 |---------|-----------|
-| Izumi 2026 アルゴリズム | `algorithms/homogeneous_multichannel_izumi2026.py` |
-| アルゴリズム export 更新 | `algorithms/__init__.py` |
-| metrics フェーズ名対応 | `utils/metrics.py` |
-| main.py 呼び出し例 | `main.py` |
-| Izumi 2026 テスト | `tests/test_izumi2026_initialization.py` |
+| Izumi 2026 アルゴリズム | `simulator/algorithms/homogeneous/izumi2026/algorithm.py` |
+| アルゴリズム export 更新 | `simulator/algorithms/__init__.py` |
+| metrics フェーズ名対応 | `simulator/simulator/utils/metrics.py` |
+| simulator/main.py 呼び出し例 | `simulator/main.py` |
+| Izumi 2026 テスト | `tests/algorithms/homogeneous/izumi2026/` |
 
 ---
 
@@ -176,11 +176,11 @@ G ∩ C_accept から割り当てるフォールバックを追加している�
    - ComGrandLeader / ComSubLeader / ComFollower を詳細に再現。
    - `HierarchicalDistributedExploration` の通信コストをより正確にシミュレート。
 
-2. **`utils/plotter.py`** (Step 5 の一部)
+2. **`simulator/utils/plotter.py`** (Step 5 の一部)
    - cumulative regret の比較グラフ（Huang 2022 vs Izumi 2026）。
    - フェーズ別所要時間の棒グラフ。
 
-3. **`experiments/compare_homogeneous.py`** (Step 6)
+3. **`simulator/experiments/compare_homogeneous.py`** (Step 6)
    - Huang 2022 vs Izumi 2026 (n=1, 2, 3) の比較実験スクリプト。
    - CSV 出力（`results/` 配下）・グラフ出力（`figures/` 配下）。
 
@@ -198,7 +198,7 @@ G ∩ C_accept から割り当てるフォールバックを追加している�
 ### テスト実行コマンド
 
 ```bash
-python -m pytest tests/test_env.py tests/test_huang2022_initialization.py tests/test_izumi2026_initialization.py -v
+python -m pytest tests/test_env.py tests/algorithms/homogeneous/huang2022/ tests/algorithms/homogeneous/izumi2026/ -v
 ```
 
 ### 結果
@@ -218,29 +218,29 @@ tests/test_env.py::TestOptimalReward::test_optimal_is_top_m_sum PASSED
 tests/test_env.py::TestOptimalReward::test_instant_regret_nonneg_on_average PASSED
 tests/test_env.py::TestValidation::test_invalid_arm_index PASSED
 tests/test_env.py::TestValidation::test_invalid_actions_length PASSED
-tests/test_huang2022_initialization.py::TestFindGoodArm::test_returns_positive_mean_arm PASSED
-tests/test_huang2022_initialization.py::TestFindGoodArm::test_mu_tilde_is_lower_bound PASSED
-tests/test_huang2022_initialization.py::TestVirtualMusicalChairs::test_rank_assignment PASSED
-tests/test_huang2022_initialization.py::TestVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_assigned_arms_no_duplicate PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_all_players_get_assignment PASSED
-tests/test_huang2022_initialization.py::TestFullRun::test_phase_durations_recorded PASSED
-tests/test_izumi2026_initialization.py::TestFindMultipleGoodArms::test_returns_n_arms PASSED
-tests/test_izumi2026_initialization.py::TestFindMultipleGoodArms::test_returns_positive_mean_arms PASSED
-tests/test_izumi2026_initialization.py::TestFindMultipleGoodArms::test_mu_tilde_lower_bounds PASSED
-tests/test_izumi2026_initialization.py::TestFindMultipleGoodArms::test_arms_are_unique PASSED
-tests/test_izumi2026_initialization.py::TestParallelVirtualMusicalChairs::test_no_duplicate_good_arm_per_block PASSED
-tests/test_izumi2026_initialization.py::TestParallelVirtualMusicalChairs::test_rank_assignment PASSED
-tests/test_izumi2026_initialization.py::TestParallelVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
-tests/test_izumi2026_initialization.py::TestParallelVirtualNumberPlayers::test_each_slot_at_most_one_good_arm PASSED
-tests/test_izumi2026_initialization.py::TestParallelVirtualNumberPlayers::test_m_hat_plausible PASSED
-tests/test_izumi2026_initialization.py::TestFullRunIzumi::test_assigned_arms_no_duplicate PASSED
-tests/test_izumi2026_initialization.py::TestFullRunIzumi::test_all_players_get_assignment PASSED
-tests/test_izumi2026_initialization.py::TestFullRunIzumi::test_phase_durations_recorded PASSED
-tests/test_izumi2026_initialization.py::TestFullRunIzumi::test_good_arms_recorded_in_player_state PASSED
-tests/test_izumi2026_initialization.py::TestN1Compatibility::test_n1_assignment_success PASSED
-tests/test_izumi2026_initialization.py::TestN1Compatibility::test_n1_and_huang2022_both_succeed PASSED
-tests/test_izumi2026_initialization.py::TestN1Compatibility::test_n1_no_duplicate_assignment PASSED
+tests/algorithms/homogeneous/huang2022/::TestFindGoodArm::test_returns_positive_mean_arm PASSED
+tests/algorithms/homogeneous/huang2022/::TestFindGoodArm::test_mu_tilde_is_lower_bound PASSED
+tests/algorithms/homogeneous/huang2022/::TestVirtualMusicalChairs::test_rank_assignment PASSED
+tests/algorithms/homogeneous/huang2022/::TestVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_assigned_arms_no_duplicate PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_all_players_get_assignment PASSED
+tests/algorithms/homogeneous/huang2022/::TestFullRun::test_phase_durations_recorded PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFindMultipleGoodArms::test_returns_n_arms PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFindMultipleGoodArms::test_returns_positive_mean_arms PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFindMultipleGoodArms::test_mu_tilde_lower_bounds PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFindMultipleGoodArms::test_arms_are_unique PASSED
+tests/algorithms/homogeneous/izumi2026/::TestParallelVirtualMusicalChairs::test_no_duplicate_good_arm_per_block PASSED
+tests/algorithms/homogeneous/izumi2026/::TestParallelVirtualMusicalChairs::test_rank_assignment PASSED
+tests/algorithms/homogeneous/izumi2026/::TestParallelVirtualMusicalChairs::test_ranks_tend_to_be_unique PASSED
+tests/algorithms/homogeneous/izumi2026/::TestParallelVirtualNumberPlayers::test_each_slot_at_most_one_good_arm PASSED
+tests/algorithms/homogeneous/izumi2026/::TestParallelVirtualNumberPlayers::test_m_hat_plausible PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFullRunIzumi::test_assigned_arms_no_duplicate PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFullRunIzumi::test_all_players_get_assignment PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFullRunIzumi::test_phase_durations_recorded PASSED
+tests/algorithms/homogeneous/izumi2026/::TestFullRunIzumi::test_good_arms_recorded_in_player_state PASSED
+tests/algorithms/homogeneous/izumi2026/::TestN1Compatibility::test_n1_assignment_success PASSED
+tests/algorithms/homogeneous/izumi2026/::TestN1Compatibility::test_n1_and_huang2022_both_succeed PASSED
+tests/algorithms/homogeneous/izumi2026/::TestN1Compatibility::test_n1_no_duplicate_assignment PASSED
 
 34 passed in 0.34s
 ==============================
@@ -265,7 +265,7 @@ tests/test_izumi2026_initialization.py::TestN1Compatibility::test_n1_no_duplicat
 
 ---
 
-## main.py の実行結果（T=50,000, K=5, M=2, n=2, seed=42）
+## simulator/main.py の実行結果（T=50,000, K=5, M=2, n=2, seed=42）
 
 ```
 === Huang 2022 Sanity Check ===

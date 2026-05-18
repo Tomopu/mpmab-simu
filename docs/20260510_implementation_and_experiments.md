@@ -51,19 +51,29 @@ envs/
   base_env.py
   bernoulli_mpmab.py
 
-algorithms/
+simulator/algorithms/
   __init__.py
   base.py
-  homogeneous_huang2022.py
-  homogeneous_multichannel_izumi2026.py
-  communication.py
+  homogeneous/
+    huang2022/
+      algorithm.py
+      algorithm1_find_good_arm.py
+      algorithm2_virtual_musical_chairs.py
+      algorithm3_virtual_number_players.py
+      algorithm4_distributed_exploration.py
+    izumi2026/
+      algorithm.py
+      algorithm1_find_multiple_good_arms.py
+      algorithm2_parallel_virtual_musical_chairs.py
+      algorithm3_parallel_virtual_number_players.py
+      algorithm4_hierarchical_distributed_exploration.py
 
 core/
   __init__.py
   runner.py
   trace.py
 
-utils/
+simulator/utils/
   __init__.py
   metrics.py
   plotter.py
@@ -76,7 +86,7 @@ tests/
   test_huang2022_initialization.py
   test_izumi2026_initialization.py
 
-main.py
+simulator/main.py
 requirements.txt
 ```
 
@@ -216,7 +226,7 @@ tau = ceil(log(1 / delta) / mu_min)
 
 ### Step 5: Metrics
 
-`utils/metrics.py` に以下を実装する。
+`simulator/simulator/utils/metrics.py` に以下を実装する。
 
 - cumulative regret
 - average regret over trials

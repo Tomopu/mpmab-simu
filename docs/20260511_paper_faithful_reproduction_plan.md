@@ -95,8 +95,7 @@
 
 追加予定テスト:
 
-- `tests/test_huang2022_paper_invariants.py`
-- `tests/test_izumi2026_paper_invariants.py`
+- `tests/algorithms/homogeneous/test_initialization_invariants.py`
 
 テストはまず `xfail` または fail expected として追加し、どの実装差分を直すべきかを明確化する。
 

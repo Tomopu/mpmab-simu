@@ -3,14 +3,30 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Optional
 
-from simulator.algorithms.homogeneous.huang2022.exploration import Huang2022ExplorationMixin
-from simulator.algorithms.homogeneous.huang2022.phases import Huang2022PhaseMixin
+from simulator.algorithms.homogeneous.huang2022.algorithm1_find_good_arm import (
+    Huang2022FindGoodArmMixin,
+)
+from simulator.algorithms.homogeneous.huang2022.algorithm2_virtual_musical_chairs import (
+    Huang2022VirtualMusicalChairsMixin,
+)
+from simulator.algorithms.homogeneous.huang2022.algorithm3_virtual_number_players import (
+    Huang2022VirtualNumberPlayersMixin,
+)
+from simulator.algorithms.homogeneous.huang2022.algorithm4_distributed_exploration import (
+    Huang2022DistributedExplorationMixin,
+)
 from simulator.algorithms.homogeneous.huang2022.results import build_result
-from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.algorithms.homogeneous.math_helpers import ceil_int as _ceil
+from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.core.runner import HorizonReached, Runner
 
-class HomogeneousHuang2022(Huang2022PhaseMixin, Huang2022ExplorationMixin):
+
+class HomogeneousHuang2022(
+    Huang2022FindGoodArmMixin,
+    Huang2022VirtualMusicalChairsMixin,
+    Huang2022VirtualNumberPlayersMixin,
+    Huang2022DistributedExplorationMixin,
+):
     """
     Huang et al. (2022) Homogeneous MPMAB without Collision Sensing の実装。
 
@@ -39,38 +55,32 @@ class HomogeneousHuang2022(Huang2022PhaseMixin, Huang2022ExplorationMixin):
 
         # プレイヤーごとに独立な乱数生成器を派生させる
         master_rng = random.Random(seed)
-        self._player_rngs: List[random.Random] = [
-            random.Random(master_rng.randrange(1 << 30)) for _ in range(M)
-        ]
-
-    # ------------------------------------------------------------------
-    # Algorithm 1: FindGoodArm
-    # ------------------------------------------------------------------
+        self._player_rngs: List[random.Random] = [random.Random(master_rng.randrange(1 << 30)) for _ in range(M)]
 
     def run(self, runner: Runner) -> Dict[str, object]:
         """
         Algorithm 5 Proposed algorithm を実行する。
 
         手順:
-          1. FindGoodArm で good arm k_tilde と報酬下界 mu_tilde を得る。
-          2. VirtualMusicalChairs で各プレイヤーに external rank s を割り当てる。
-             tau_rank = K * ln(1/delta) / mu_tilde
-          3. VirtualNumberPlayers で内部 rank j と推定プレイヤー数 M_hat を得る。
-             tau_comm = ln(1/delta) / mu_tilde
-          4. DistributedExploration で各プレイヤーに top-M arm を割り当てる。
+            1. FindGoodArm で good arm k_tilde と報酬下界 mu_tilde を得る。
+            2. VirtualMusicalChairs で各プレイヤーに external rank s を割り当てる。
+                tau_rank = K * ln(1/delta) / mu_tilde
+            3. VirtualNumberPlayers で内部 rank j と推定プレイヤー数 M_hat を得る。
+                tau_comm = ln(1/delta) / mu_tilde
+            4. DistributedExploration で各プレイヤーに top-M arm を割り当てる。
 
         HorizonReached について:
-          各フェーズを個別に try/except で囲み、取得済みの状態を保持する。
-          horizon に達した時点でそれ以前に完了したフェーズの結果を返す。
-          未完了フェーズの出力は -1 のまま。
+            各フェーズを個別に try/except で囲み、取得済みの状態を保持する。
+            horizon に達した時点でそれ以前に完了したフェーズの結果を返す。
+            未完了フェーズの出力は -1 のまま。
 
         Args:
             runner: Runner インスタンス（horizon 管理を含む）
 
         Returns:
             {
-              "player_states": List[PlayerState],  各プレイヤーの最終状態
-              "phase_durations": Dict[str, int],   フェーズごとの所要ステップ数
+                "player_states": List[PlayerState],  各プレイヤーの最終状態
+                "phase_durations": Dict[str, int],   フェーズごとの所要ステップ数
             }
         """
         K = self.K
@@ -119,8 +129,3 @@ class HomogeneousHuang2022(Huang2022PhaseMixin, Huang2022ExplorationMixin):
             pass
 
         return build_result(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner)
-
-    # ------------------------------------------------------------------
-    # 内部ヘルパー
-    # ------------------------------------------------------------------
-

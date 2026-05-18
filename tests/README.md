@@ -14,9 +14,9 @@ pytest によるユニットテストを置くディレクトリ。
 | ファイル | 対象 | テスト数 |
 |---------|------|---------|
 | `envs/test_env.py` | `BernoulliMPMABEnv` | 11 |
-| `algorithms/test_huang2022_initialization.py` | `HomogeneousHuang2022` の初期化フェーズ | 8 |
-| `algorithms/test_izumi2026_initialization.py` | `HomogeneousMultiChannelIzumi2026` の初期化フェーズ | 17 |
-| `invariants/test_paper_invariants.py` | 論文再現に必要な初期化不変条件 | 2 |
+| `algorithms/homogeneous/huang2022/` | `HomogeneousHuang2022` の phase / full run | 8 |
+| `algorithms/homogeneous/izumi2026/` | `HomogeneousMultiChannelIzumi2026` の phase / full run | 17 |
+| `algorithms/homogeneous/test_initialization_invariants.py` | 論文再現に必要な初期化不変条件 | 2 |
 
 ### 実行方法
 
@@ -38,7 +38,7 @@ python -m pytest tests/ -v
 - Invalid arm index: 範囲外の arm index で ValueError
 - Invalid actions length: プレイヤー数と異なる actions で ValueError
 
-### `test_huang2022_initialization.py` の項目
+### `algorithms/homogeneous/huang2022/` の項目
 
 - FindGoodArm が正の平均を持つ arm を返す
 - FindGoodArm の mu_tilde が下限として妥当
@@ -48,7 +48,7 @@ python -m pytest tests/ -v
 - full run で全プレイヤーが assignment を得る
 - full run で phase_durations が記録される
 
-### `test_izumi2026_initialization.py` の項目
+### `algorithms/homogeneous/izumi2026/` の項目
 
 - FindMultipleGoodArms が n 本の arm を返す
 - FindMultipleGoodArms が正の平均を持つ arm を返す

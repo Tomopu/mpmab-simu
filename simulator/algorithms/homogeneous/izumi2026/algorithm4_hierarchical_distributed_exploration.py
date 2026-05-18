@@ -4,12 +4,13 @@ import math
 from typing import Dict, List
 
 from simulator.algorithms.homogeneous.izumi2026.communication import Izumi2026CommunicationMixin
-from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.algorithms.homogeneous.math_helpers import ceil_int as _ceil
+from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.core.runner import Runner
 
-class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
-    """Exploration phase for HomogeneousMultiChannelIzumi2026."""
+
+class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMixin):
+    """Algorithm 4: HierarchicalDistributedExploration."""
 
     def hierarchical_distributed_exploration(
         self,
@@ -23,23 +24,23 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
         Algorithm 4 HierarchicalDistributedExploration を同期実行する。
 
         n 本の good arm を通信チャンネルとして使い、プレイヤーを以下の役割に分ける:
-          - Grand Leader (j=1): 全通信を統括し、accept/reject を決定する。
-          - Sub-Leader (2 <= j <= n): 担当グループ g=j の情報をまとめて Grand Leader に送る。
-          - Follower (j > n): 所属グループ g = ((j-1) mod n)+1 の Sub-Leader に送る。
+            - Grand Leader (j=1): 全通信を統括し、accept/reject を決定する。
+            - Sub-Leader (2 <= j <= n): 担当グループ g=j の情報をまとめて Grand Leader に送る。
+            - Follower (j > n): 所属グループ g = ((j-1) mod n)+1 の Sub-Leader に送る。
 
         通信の簡略実装（Supplemental Pseudocode の Implementation Notes に従う）:
-          1. 推定値 E[k] は直接集約する（量子化・通信誤りなし）。
-          2. 通信時間コストは最も重いグループの cost で近似し、
-             ダミーアクションで runner.step() を消費する。
-          3. accept/reject は Grand Leader のみが決定する。
+            1. 推定値 E[k] は直接集約する（量子化・通信誤りなし）。
+            2. 通信時間コストは最も重いグループの cost で近似し、
+                ダミーアクションで runner.step() を消費する。
+            3. accept/reject は Grand Leader のみが決定する。
 
         論文の変数対応:
-          論文 j=1 が Grand Leader → 実装 j_list[m]==1 の m
-          論文 2<=j<=n が Sub-Leader → 実装 j_list[m] in 2..n
-          論文 j>n が Follower → 実装 j_list[m] > n
-          論文 g = ((j-1) mod n)+1 (1-based group) → 実装 g_0 = (j_list[m]-1) % n (0-based)
-          論文 channel G[g] (1-based g) → 実装 good_arms[g_0] (0-based)
-          論文 Q = ceil(p/2 + 3) → 実装も同じ式
+            論文 j=1 が Grand Leader → 実装 j_list[m]==1 の m
+            論文 2<=j<=n が Sub-Leader → 実装 j_list[m] in 2..n
+            論文 j>n が Follower → 実装 j_list[m] > n
+            論文 g = ((j-1) mod n)+1 (1-based group) → 実装 g_0 = (j_list[m]-1) % n (0-based)
+            論文 channel G[g] (1-based g) → 実装 good_arms[g_0] (0-based)
+            論文 Q = ceil(p/2 + 3) → 実装も同じ式
 
         Args:
             runner: Runner
@@ -67,13 +68,13 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
 
         p = 0
         f = [-1] * M
-        R = [[0] * K for _ in range(M)]    # 累積報酬
+        R = [[0] * K for _ in range(M)]  # 累積報酬
         v_cnt = [[0] * K for _ in range(M)]  # サンプル数
         E = [[0.0] * K for _ in range(M)]  # 推定平均報酬
 
         # Grand Leader / Sub-Leader が保持する全プレイヤー集約統計
         mu_hat = [[0.0] * M for _ in range(K)]  # mu_hat[k][pid]
-        N_mat = [[0] * M for _ in range(K)]      # N_mat[k][pid]
+        N_mat = [[0] * M for _ in range(K)]  # N_mat[k][pid]
 
         active_arms = list(range(K))
         good_set = set(good_arms)
@@ -139,16 +140,12 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
 
             # ---- ComSubLeader: Sub-Leader → Grand Leader へのアップリンク ----
             # n-1 個の Sub-Leader が Grand Leader に送る（G[1] を介して順番に送信）
-            n_subleaders = sum(
-                1 for m in range(M) if 2 <= j_list[m] <= n and f[m] == -1
-            )
+            n_subleaders = sum(1 for m in range(M) if 2 <= j_list[m] <= n and f[m] == -1)
             comm_uplink_sub = n_subleaders * Ka * Q * tau
 
             # 通信コストを Trace に記録するためダミー step を消費する
             # 実際の bit 伝送は行わず、時間コストのみをシミュレートする（簡略化）
-            self._consume_comm_steps(
-                runner, comm_uplink_follower + comm_uplink_sub, dummy
-            )
+            self._consume_comm_steps(runner, comm_uplink_follower + comm_uplink_sub, dummy)
 
             # 1. 全プレイヤーの推定値を Grand Leader が直接集約する（簡略化: 量子化なし）
             for m in range(M):
@@ -175,9 +172,7 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
             comm_downlink_sub = n_subleaders * n_int_msgs * Q0 * tau
             # Follower への downlink（Sub-Leader 経由）
             comm_downlink_follower = max_followers_per_group * n_int_msgs * Q0 * tau
-            self._consume_comm_steps(
-                runner, comm_downlink_sub + comm_downlink_follower, dummy
-            )
+            self._consume_comm_steps(runner, comm_downlink_sub + comm_downlink_follower, dummy)
 
             # 3. 各プレイヤーが AssignAndUpdate を実行して割当を決定する
             assigned_before = set(a for a in f if a >= 0)
@@ -212,7 +207,6 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
                                 C_accept=C_accept,
                             )
 
-                # 補完割当 fallback は論文手順ではないため通常経路からは呼ばない。
                 # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
 
                 # active_arms と M0 をグローバルに更新する
@@ -230,8 +224,3 @@ class Izumi2026ExplorationMixin(Izumi2026CommunicationMixin):
                 active_arms = [a for a in active_arms if a not in remove_set]
 
         return f
-
-    # ------------------------------------------------------------------
-    # Algorithm 5: ProposedParallelAlgorithm (run エントリーポイント)
-    # ------------------------------------------------------------------
-

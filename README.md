@@ -22,14 +22,18 @@ mpmab-simu/
 │   │   └── homogeneous/
 │   │       ├── huang2022/
 │   │       │   ├── algorithm.py       # Huang 2022 のクラス本体・run()
-│   │       │   ├── phases.py          # FindGoodArm / VMC / VNP
-│   │       │   ├── exploration.py     # DistributedExploration
+│   │       │   ├── algorithm1_find_good_arm.py
+│   │       │   ├── algorithm2_virtual_musical_chairs.py
+│   │       │   ├── algorithm3_virtual_number_players.py
+│   │       │   ├── algorithm4_distributed_exploration.py
 │   │       │   ├── communication.py   # 簡略通信・割当 helper
 │   │       │   └── results.py         # PlayerState への変換
 │   │       ├── izumi2026/
 │   │       │   ├── algorithm.py       # Izumi 2026 のクラス本体・run()
-│   │       │   ├── phases.py          # FindMultipleGoodArms / ParallelVMC / ParallelVNP
-│   │       │   ├── exploration.py     # HierarchicalDistributedExploration
+│   │       │   ├── algorithm1_find_multiple_good_arms.py
+│   │       │   ├── algorithm2_parallel_virtual_musical_chairs.py
+│   │       │   ├── algorithm3_parallel_virtual_number_players.py
+│   │       │   ├── algorithm4_hierarchical_distributed_exploration.py
 │   │       │   ├── communication.py   # 簡略通信・割当 helper
 │   │       │   └── results.py         # PlayerStateIzumi への変換
 │   │       ├── states.py
@@ -76,5 +80,5 @@ python -m simulator.experiments.compare_homogeneous --experiment small --trials 
 - no-sensing: collision flag はアルゴリズムの意思決定に渡さない。
 - 各ステップの記録は `Trace` に積み、`to_dataframe()` で pandas DataFrame として取得できる。
 - 再現性のため、確率的処理はすべて seed を受け取る。
-- 論文アルゴリズムは `algorithm.py` を入口にし、初期化フェーズ・探索フェーズ・通信 helper を分ける。
+- 論文アルゴリズムは `algorithm.py` を入口にし、論文の Algorithm 番号に対応するファイルへ phase 実装を分ける。
 - 比較実験は CLI、設定、実行、I/O を分け、実験追加時に `run_homogeneous.py` へ処理が集中しすぎないようにする。

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List
+from typing import List
 
 from simulator.algorithms.homogeneous.huang2022.communication import Huang2022CommunicationMixin
-from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.algorithms.homogeneous.math_helpers import ceil_int as _ceil
+from simulator.algorithms.homogeneous.math_helpers import checked_log as _ln
 from simulator.core.runner import Runner
 
-class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
-    """Exploration phase for HomogeneousHuang2022."""
+
+class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
+    """Algorithm 4: DistributedExploration."""
 
     def distributed_exploration(
         self,
@@ -25,19 +26,12 @@ class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
         各プレイヤーが active arms を sequential hopping で探索し、
         leader (j=1) が推定値を集約して accept/reject を決定する。
 
-        通信の簡略実装:
-          初回実装では forced collision bit 伝送（Algorithm 8/9）を完全再現しない。
-          代わりに:
-            1. 推定値 E[k] は直接集約する（量子化・通信誤りなし）。
-            2. 通信時間コストとして「Q * tau * Ka ステップ」を Trace に記録するため、
-               全プレイヤーが任意のダミー腕を選ぶ runner.step() を消費する。
-          この簡略化により、regret への通信コスト寄与は正しく反映されるが、
-          通信誤りによる誤決定はシミュレートされない。
-          詳細実装は将来の communication.py で行う予定。
+        通信は forced collision bit 伝送を直接シミュレートせず、推定値を直接集約する。
+        ただし通信時間コストは `runner.step()` の消費として `Trace` に記録する。
 
         論文の変数対応:
-          論文 j=1 が leader → 実装 j_list[m]==1 の m が leader
-          論文 Q = ceil(p/2 + 3) → 実装も同じ式
+            論文 j=1 が leader → 実装 j_list[m]==1 の m が leader
+            論文 Q = ceil(p/2 + 3) → 実装も同じ式
 
         Args:
             runner: Runner
@@ -64,9 +58,9 @@ class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
 
         p = 0
         f = [-1] * M
-        R = [[0] * K for _ in range(M)]   # 累積報酬
-        v = [[0] * K for _ in range(M)]   # サンプル数
-        E = [[0.0] * K for _ in range(M)] # 推定平均報酬
+        R = [[0] * K for _ in range(M)]  # 累積報酬
+        v = [[0] * K for _ in range(M)]  # サンプル数
+        E = [[0.0] * K for _ in range(M)]  # 推定平均報酬
 
         # leader が保持する全プレイヤーの集約推定値 mu_hat[k][pid] とサンプル数 N_mat[k][pid]
         mu_hat = [[0.0] * M for _ in range(K)]
@@ -117,9 +111,7 @@ class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
             Q = _ceil(p / 2.0 + 3)
 
             # active followers（j >= 2 かつ未割当）
-            follower_pids = [
-                m for m in range(M) if j_list[m] >= 2 and j_list[m] <= M0 and f[m] == -1
-            ]
+            follower_pids = [m for m in range(M) if j_list[m] >= 2 and j_list[m] <= M0 and f[m] == -1]
 
             # 1. leader 自身の E 値を mu_hat / N_mat に反映する
             for k in active_arms:
@@ -185,7 +177,6 @@ class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
                         if 0 <= idx < len(C0_accept):
                             f[fpid] = C0_accept[idx]
 
-                # 補完割当 fallback は論文手順ではないため通常経路からは呼ばない。
                 # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
 
             # 6. active_arms と M0 を更新
@@ -197,8 +188,3 @@ class Huang2022ExplorationMixin(Huang2022CommunicationMixin):
                 M0 = max(0, M0 - len(assigned_this_round))
 
         return f
-
-    # ------------------------------------------------------------------
-    # Algorithm 5: Proposed algorithm (run エントリーポイント)
-    # ------------------------------------------------------------------
-

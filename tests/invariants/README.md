@@ -1,6 +1,5 @@
 # tests/invariants/
 
-論文再現に必要な不変条件を確認する pytest を置くディレクトリ。
+共通または横断的な不変条件を確認する pytest を置くディレクトリ。
 
-fallback 後の最終結果ではなく、VMC/VNP 系フェーズの出力そのものを検証する。
-
+現在の論文初期化不変条件テストは、対象が homogeneous アルゴリズムに限られるため `tests/algorithms/homogeneous/test_initialization_invariants.py` に置く。

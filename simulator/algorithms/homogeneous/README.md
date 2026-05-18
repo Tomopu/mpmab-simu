@@ -11,5 +11,4 @@ Homogeneous 設定の MPMAB アルゴリズム実装を置くディレクトリ�
 | `states.py` | アルゴリズム結果を表す `PlayerState` dataclass |
 | `math_helpers.py` | 共通の数値 helper |
 
-各論文ディレクトリは `algorithm.py` を公開入口にし、初期化フェーズ、探索フェーズ、通信 helper、結果変換を分けている。
-
+各論文ディレクトリは `algorithm.py` を公開入口にし、論文の Algorithm 番号に対応するファイルへ phase 実装を分けている。

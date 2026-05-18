@@ -17,12 +17,16 @@ MPMAB シミュレーターのアルゴリズム実装モジュール。
 | `__init__.py` | 実装済みアルゴリズムをエクスポート |
 | `base.py` | `BaseAlgorithm` 抽象基底クラス |
 | `homogeneous/huang2022/algorithm.py` | Huang et al. (2022) の homogeneous 設定アルゴリズム本体 |
-| `homogeneous/huang2022/phases.py` | Huang 2022 の FindGoodArm / VMC / VNP |
-| `homogeneous/huang2022/exploration.py` | Huang 2022 の DistributedExploration |
+| `homogeneous/huang2022/algorithm1_find_good_arm.py` | Huang 2022 の FindGoodArm |
+| `homogeneous/huang2022/algorithm2_virtual_musical_chairs.py` | Huang 2022 の VirtualMusicalChairs |
+| `homogeneous/huang2022/algorithm3_virtual_number_players.py` | Huang 2022 の VirtualNumberPlayers |
+| `homogeneous/huang2022/algorithm4_distributed_exploration.py` | Huang 2022 の DistributedExploration |
 | `homogeneous/huang2022/communication.py` | Huang 2022 の簡略通信・割当 helper |
 | `homogeneous/izumi2026/algorithm.py` | Izumi et al. (2026) の homogeneous multi-channel 設定アルゴリズム本体 |
-| `homogeneous/izumi2026/phases.py` | Izumi 2026 の FindMultipleGoodArms / ParallelVMC / ParallelVNP |
-| `homogeneous/izumi2026/exploration.py` | Izumi 2026 の HierarchicalDistributedExploration |
+| `homogeneous/izumi2026/algorithm1_find_multiple_good_arms.py` | Izumi 2026 の FindMultipleGoodArms |
+| `homogeneous/izumi2026/algorithm2_parallel_virtual_musical_chairs.py` | Izumi 2026 の ParallelVirtualMusicalChairs |
+| `homogeneous/izumi2026/algorithm3_parallel_virtual_number_players.py` | Izumi 2026 の ParallelVirtualNumberPlayers |
+| `homogeneous/izumi2026/algorithm4_hierarchical_distributed_exploration.py` | Izumi 2026 の HierarchicalDistributedExploration |
 | `homogeneous/izumi2026/communication.py` | Izumi 2026 の簡略通信・割当 helper |
 | `homogeneous/states.py` | homogeneous 系アルゴリズムの PlayerState dataclass |
 | `homogeneous/math_helpers.py` | homogeneous 系アルゴリズムの小さな数値 helper |

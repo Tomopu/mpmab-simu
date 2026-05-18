@@ -119,9 +119,9 @@ class Izumi2026FindMultipleGoodArmsMixin:
                                 idx = arm_to_idx[a]
                                 Rprime[m][idx] += result.rewards[m]
 
-                # R'[ell] >= 1 なら ell を G に追加する
+                # accept された arm のみ G に追加する（TeX: check は accept branch 内にしかない）
                 for m in range(M):
-                    if len(G_list[m]) < n and Rprime[m][ell_idx] >= 1:
+                    if len(G_list[m]) < n and accept[m] and Rprime[m][ell_idx] >= 1:
                         G_list[m].append(ell)
                         mu_tilde_map[m][ell] = 2.0 ** (-p)
 

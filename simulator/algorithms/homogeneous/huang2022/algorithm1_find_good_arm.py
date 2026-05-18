@@ -50,10 +50,8 @@ class Huang2022FindGoodArmMixin:
             N = [[0] * K for _ in range(M)]
 
             # ---- sub-phase 1: 各腕を一様ランダムに探索 ----
-            # 論文: for t = 1,..., 6K^2 * 2^p * ceil(ln(2/delta))
-            # （TeX の表記では 6K 2^p ln(2/delta) だが、腕あたりの期待サンプル数を
-            #   十分にするため K^2 が正しい。参照実装も K^2 を使用。）
-            T1 = 6 * K * K * (2**p) * _ceil(_ln(2.0 / delta))
+            # 論文: for t = 1,..., 6K * 2^p * ceil(ln(2/delta))
+            T1 = 6 * K * (2**p) * _ceil(_ln(2.0 / delta))
             for _ in range(T1):
                 actions = [self._player_rngs[m].randrange(K) for m in range(M)]
                 result = runner.step(actions)
@@ -88,9 +86,9 @@ class Huang2022FindGoodArmMixin:
                         a = actions[m]
                         Rprime[m][a] += result.rewards[m]
 
-                # R'[ell] >= 1 なら ell を confirm
+                # accept された arm のみ confirm する（TeX: check は accept branch 内にしかない）
                 for m in range(M):
-                    if k_tilde_list[m] == -1 and Rprime[m][ell] >= 1:
+                    if k_tilde_list[m] == -1 and accept[m] and Rprime[m][ell] >= 1:
                         k_tilde_list[m] = ell
                         mu_tilde_list[m] = 2.0 ** (-p)
 

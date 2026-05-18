@@ -100,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="CSV のみ出力し、PNG を生成しない。",
     )
     parser.add_argument(
+        "--no-phase-lines",
+        action="store_true",
+        help="regret curve に phase 終了時刻の縦線を描かない。",
+    )
+    parser.add_argument(
         "--retry-on-failure",
         action="store_true",
         help="final_assignment_success が false の trial を seed を変えて再試行する。",
@@ -173,6 +178,8 @@ def main() -> None:
             curve_df,
             run_dir / "regret_huang_vs_izumi.png",
             confidence=args.ci,
+            phase_summary=summary_df,
+            show_phase_boundaries=not args.no_phase_lines,
         )
         save_metric_bar(
             summary_df,

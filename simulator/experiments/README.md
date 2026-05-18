@@ -35,6 +35,7 @@ python -m simulator.experiments.compare_homogeneous --experiment small --trials 
 - `--means`: arm 平均報酬をカンマ区切りで直接指定。
 - `--name-suffix`: 出力ファイル名の suffix。
 - `--no-plots`: CSV のみ出力。
+- `--no-phase-lines`: regret curve に phase 終了時刻の縦線を描かない。
 - `--retry-on-failure`: `final_assignment_success=0` の trial を seed を変えて再試行。
 - `--max-attempts`: `--retry-on-failure` 時の最大 attempt 数。
 - `--output-root`: run ディレクトリを作る親ディレクトリ。デフォルトは `outputs/runs`。
@@ -69,7 +70,9 @@ python -m simulator.experiments.compare_homogeneous \
   --name-suffix K7_M3
 ```
 
-regret curve には trial 間の 95% CI を薄い帯で表示する。
+regret curve には trial 間の 95% CI を薄い帯で表示する。デフォルトでは、各
+algorithm/n の平均 phase 終了時刻（find good、rank、player count、exploration）
+を縦線で重ねる。
 
 ## 出力先
 

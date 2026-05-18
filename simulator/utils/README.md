@@ -49,3 +49,4 @@ save_metric_bar(summary_df, "init_duration", "outputs/figures/init_duration_by_n
 
 `simulator.experiments.compare_homogeneous` から呼び出し、PNG を `outputs/runs/` に保存する。
 regret curve は trial 間の平均値に加えて 95% CI を薄い帯で表示する。
+`summary_df` を渡した場合は、各 phase の平均終了時刻を y 軸に並行な縦線として表示する。

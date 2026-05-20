@@ -44,7 +44,6 @@ mpmab-simu/
 │   │   ├── configs.py                 # preset・CLI 上書き設定
 │   │   ├── run_homogeneous.py         # trial 実行・retry・集計行生成
 │   │   └── io.py                      # 出力先作成・設定保存・集計表示
-│   ├── agents/         # 将来の player agent / baseline 用（現在は予約）
 │   └── main.py         # sanity check エントリーポイント
 ├── tests/              # pytest テスト
 │   ├── envs/

@@ -90,8 +90,6 @@ simulator/main.py
 requirements.txt
 ```
 
-`agents/` は将来の汎用 Agent 実装に使ってもよいが、最初は論文単位のアルゴリズム実装を `algorithms/` に置く方がレビューしやすい。
-
 ## 実装ステップ
 
 ### Step 1: 環境

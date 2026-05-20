@@ -4,8 +4,24 @@
 
 ## ドキュメント一覧
 
+### 設計・計画
+
 - [20260510_implementation_and_experiments.md](20260510_implementation_and_experiments.md)
-  - シミュレーターの実装手順、比較実験、Claude Code への依頼テンプレート、Codex レビュー観点。
+  - シミュレーターの実装手順、比較実験設定、Claude Code への依頼テンプレート、Codex レビュー観点。
+
+### 実装メモ
+
+- [implementation_notes.md](implementation_notes.md)
+  - Homogeneous 版（Huang 2022 / Izumi 2026）の実装概要、ソースパス対応、簡略化箇所、比較実験コマンド。
+
+- [20260511_fallback_inventory.md](20260511_fallback_inventory.md)
+  - 論文手順から外れる安全装置 fallback の所在と方針。
+
+- [20260511_paper_faithful_reproduction_plan.md](20260511_paper_faithful_reproduction_plan.md)
+  - simplified 実装を論文再現実装に近づけるための作業計画。
+
+- [20260518_bugfix_report.md](20260518_bugfix_report.md)
+  - Huang 2022 / Izumi 2026 の実装バグ調査と修正レポート（T1 式、reject arm 確認チェック、τ_rank など）。
 
 ## 擬似コード
 
@@ -17,7 +33,6 @@
 
 - [Izumi 2026](pseudocode/20260510_izumi2026_pseudocode.md)
   - Homogeneous multi-channel MPMAB。
-  - `data.tex` に記述された parallel 版のみ。
   - `FindMultipleGoodArms`, `ParallelVirtualMusicalChairs`, `ParallelVirtualNumberPlayers`, `HierarchicalDistributedExploration` など。
 
 - [Shi 2021 BEACON](pseudocode/20260510_shi2021_beacon_pseudocode.md)

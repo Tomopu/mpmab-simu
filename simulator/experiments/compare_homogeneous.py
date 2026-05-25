@@ -105,6 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="regret curve に phase 終了時刻の縦線を描かない。",
     )
     parser.add_argument(
+        "--log-xscale",
+        action="store_true",
+        help="regret curve の x 軸を対数スケールにする（初期フェーズの重なり解消に有効）。",
+    )
+    parser.add_argument(
         "--retry-on-failure",
         action="store_true",
         help="final_assignment_success が false の trial を seed を変えて再試行する。",
@@ -180,6 +185,7 @@ def main() -> None:
             confidence=args.ci,
             phase_summary=summary_df,
             show_phase_boundaries=not args.no_phase_lines,
+            log_xscale=args.log_xscale,
         )
         save_metric_bar(
             summary_df,

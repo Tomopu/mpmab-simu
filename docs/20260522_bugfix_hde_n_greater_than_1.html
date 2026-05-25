@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HDE n&gt;1 バグ修正レポート – 2026-05-22</title>
+
+  <!-- MathJax 3: LaTeX数式のレンダリング -->
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        tags: 'none',
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --surface2: #f3f4f6;
+      --border: #d1d5db;
+      --text: #111827;
+      --text2: #374151;
+      --muted: #6b7280;
+      --accent: #1d4ed8;
+      --accent-bg: #eff6ff;
+      --accent-bd: #bfdbfe;
+      --green: #15803d;
+      --green-bg: #f0fdf4;
+      --green-bd: #bbf7d0;
+      --red: #b91c1c;
+      --red-bg: #fef2f2;
+      --red-bd: #fecaca;
+      --orange: #b45309;
+      --orange-bg: #fffbeb;
+      --orange-bd: #fde68a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Segoe UI', sans-serif;
+      font-size: 15px;
+      line-height: 1.85;
+      padding: 36px 16px 100px;
+    }
+
+    .page { max-width: 900px; margin: 0 auto; }
+
+    /* ===== Headings ===== */
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      padding-bottom: 14px;
+      border-bottom: 3px solid var(--accent);
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 52px 0 16px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-left: 5px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text2);
+      margin: 28px 0 10px;
+      padding-left: 10px;
+      border-left: 3px solid var(--border);
+    }
+    p { margin-bottom: 12px; }
+    ul, ol { margin: 8px 0 12px 22px; }
+    li { margin-bottom: 5px; }
+    .meta { color: var(--muted); font-size: 13px; margin: 8px 0 32px; }
+
+    /* ===== Callouts ===== */
+    .callout {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+    }
+    .callout strong { display: block; font-size: 14px; margin-bottom: 5px; }
+    .callout.error  { background: var(--red-bg);    border-color: var(--red);    }
+    .callout.warn   { background: var(--orange-bg); border-color: var(--orange); }
+    .callout.ok     { background: var(--green-bg);  border-color: var(--green);  }
+    .callout.info   { background: var(--accent-bg); border-color: var(--accent); }
+    .callout.error  strong { color: var(--red);    }
+    .callout.warn   strong { color: var(--orange); }
+    .callout.ok     strong { color: var(--green);  }
+    .callout.info   strong { color: var(--accent); }
+
+    /* ===== Code ===== */
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      margin: 12px 0;
+    }
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.875em;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    pre code { background: none; border: none; padding: 0; font-size: inherit; }
+
+    /* Syntax colors (light theme) */
+    .kw  { color: #7c3aed; font-weight: 600; }
+    .fn  { color: #0369a1; }
+    .str { color: #16a34a; }
+    .cm  { color: var(--muted); font-style: italic; }
+    .num { color: #0891b2; }
+    .hi  { background: rgba(185,28,28,0.12); border-radius: 3px; padding: 0 2px; }
+    .fix { background: rgba(21,128,61,0.12);  border-radius: 3px; padding: 0 2px; }
+    .ann { color: var(--red); font-weight: 700; }
+
+    /* ===== Tables ===== */
+    .tbl-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); }
+    th, td { padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: var(--surface2); color: var(--text2); font-weight: 600; font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+    td.ok  { color: var(--green); font-weight: 600; }
+    td.err { color: var(--red); font-weight: 600; }
+
+    /* ===== Role Badges ===== */
+    .badge {
+      display: inline-block;
+      border-radius: 5px;
+      padding: 2px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 2px;
+    }
+    .badge.gl { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge.sl { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-bd); }
+    .badge.fl { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+
+    /* ===== Math Block ===== */
+    .math-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 22px;
+      margin: 14px 0;
+      overflow-x: auto;
+    }
+    .math-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    /* ===== Steps ===== */
+    .steps { margin: 16px 0; }
+    .step {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+    .step-num {
+      min-width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body { flex: 1; }
+
+    /* ===== Diff ===== */
+    .diff-container { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+    @media (max-width: 640px) { .diff-container { grid-template-columns: 1fr; } }
+    .diff-panel { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    .diff-header { padding: 8px 16px; font-size: 13px; font-weight: 700; }
+    .diff-header.bad  { background: var(--red-bg);   color: var(--red);   border-bottom: 1px solid var(--red-bd); }
+    .diff-header.good { background: var(--green-bg); color: var(--green); border-bottom: 1px solid var(--green-bd); }
+    .diff-panel pre { border-radius: 0; border: none; margin: 0; }
+
+    /* ===== Animation Widget ===== */
+    .anim-widget {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .anim-title {
+      background: var(--surface2);
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text2);
+      border-bottom: 1px solid var(--border);
+    }
+    .anim-stage {
+      padding: 22px 20px 12px;
+      min-height: 260px;
+      background: var(--surface);
+    }
+    .anim-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px 13px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      padding: 6px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+    }
+    .btn:hover { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .step-info { color: var(--muted); font-size: 13px; flex: 1; }
+
+    /* ===== Player Cards ===== */
+    .players { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+    .player-card {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 140px;
+      background: var(--surface);
+      transition: all .3s;
+    }
+    .player-card .role    { font-size: 11px; color: var(--muted); margin-bottom: 3px; font-weight: 600; }
+    .player-card .jval    { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .player-card .assigned { font-size: 13px; margin-top: 4px; }
+    .player-card .idx-calc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .player-card.state-ok     { border-color: var(--green);  background: var(--green-bg); }
+    .player-card.state-err    { border-color: var(--red);    background: var(--red-bg); }
+    .player-card.state-active { border-color: var(--accent); background: var(--accent-bg); }
+    .player-card.state-done   { border-color: var(--green);  background: var(--green-bg); opacity: .72; }
+
+    /* ===== Arm Chips ===== */
+    .arm-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+    .arm-chip {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      transition: all .3s;
+    }
+    .arm-chip.good   { border-color: #d97706; color: #92400e; background: #fffbeb; }
+    .arm-chip.accept { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+    .arm-chip.assign { border-color: var(--green);  color: var(--green);  background: var(--green-bg); }
+    .arm-chip.reject { border-color: #9ca3af; color: #9ca3af; background: #f9fafb; text-decoration: line-through; }
+    .arm-chip.stuck  {
+      border-color: var(--red); color: var(--red); background: var(--red-bg);
+      animation: pulse-bad 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-bad {
+      0%,100% { box-shadow: 0 0 0 0 rgba(185,28,28,.35); }
+      50%      { box-shadow: 0 0 0 5px rgba(185,28,28,0); }
+    }
+
+    /* ===== Timeline ===== */
+    .timeline { margin: 12px 0; }
+    .tl-row {
+      display: flex; align-items: stretch;
+      margin-bottom: 6px; border-radius: 6px;
+      overflow: hidden; border: 1px solid var(--border);
+      background: var(--surface); transition: opacity .3s;
+    }
+    .tl-row.dim { opacity: .35; }
+    .tl-phase {
+      background: var(--surface2); min-width: 70px;
+      padding: 8px 14px; font-size: 13px; font-weight: 700;
+      color: var(--muted); display: flex; align-items: center;
+      border-right: 1px solid var(--border);
+    }
+    .tl-body {
+      flex: 1; padding: 8px 16px;
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 10px; font-size: 13px;
+    }
+    .tl-row.active { border-color: var(--accent); }
+    .tl-row.active .tl-phase { color: var(--accent); background: var(--accent-bg); }
+    .tl-row.bad    { border-color: var(--red); }
+    .tl-row.bad    .tl-phase { color: var(--red); background: var(--red-bg); }
+
+    .delta-tag { font-size: 12px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+    .delta-tag.dec  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); }
+    .delta-tag.inf  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); animation: pulse-bad 1.2s infinite; }
+
+    /* ===== ToC ===== */
+    .toc {
+      position: fixed; top: 50%; right: 20px;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 8px; z-index: 100;
+    }
+    @media (max-width: 960px) { .toc { display: none; } }
+    .toc-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--border); cursor: pointer;
+      transition: all .2s; position: relative;
+    }
+    .toc-dot:hover, .toc-dot.active { background: var(--accent); transform: scale(1.4); }
+    .toc-dot[title]:hover::after {
+      content: attr(title);
+      position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+      white-space: nowrap; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 3px 8px; font-size: 12px; color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* ===== Utilities ===== */
+    .sep { height: 1px; background: var(--border); margin: 40px 0; }
+    .text-red { color: var(--red); }
+    .text-green { color: var(--green); }
+    .text-blue { color: var(--accent); }
+    .text-muted { color: var(--muted); }
+    .fw7 { font-weight: 700; }
+    .small { font-size: 13px; }
+    .inline-box {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="toc-dot" title="概要"             onclick="scrollToId('sec-intro')"></div>
+  <div class="toc-dot" title="アルゴリズムの仕組み" onclick="scrollToId('sec-alg')"></div>
+  <div class="toc-dot" title="バグ 1"           onclick="scrollToId('sec-bug1')"></div>
+  <div class="toc-dot" title="バグ 2"           onclick="scrollToId('sec-bug2')"></div>
+  <div class="toc-dot" title="最終修正"          onclick="scrollToId('sec-fix')"></div>
+  <div class="toc-dot" title="検証結果"          onclick="scrollToId('sec-verify')"></div>
+</nav>
+
+<div class="page">
+
+<!-- ============================================================
+     0. 概要
+     ============================================================ -->
+<h1 id="sec-intro">HierarchicalDistributedExploration n&gt;1 バグ修正レポート</h1>
+<p class="meta">
+  対象: <code>simulator/algorithms/homogeneous/izumi2026/algorithm4_hierarchical_distributed_exploration.py</code>
+  &nbsp;／&nbsp; 修正日: 2026-05-22
+</p>
+
+<div class="callout info">
+  <strong>このレポートで説明すること</strong>
+  Izumi 2026 の <code>HierarchicalDistributedExploration</code>（以下 HDE）は、
+  <strong>n 本の good arms を通信チャンネルとして使いながら M 人のプレイヤー全員に top-M の腕を割り当てる</strong>アルゴリズムです。
+  <strong>n &gt; 1</strong> のとき、実装上の 2 つのバグにより全 trial で割当が失敗していました。
+  このレポートでは「なぜ失敗したか」を数式と具体例で丁寧に説明し、最終修正を示します。
+</div>
+
+<h3>2 つのバグの概要</h3>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr><th>#</th><th>バグ</th><th>症状</th><th>根本原因</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1</strong></td>
+      <td>C_assign から good arms を除外したため、Leader への割当経路がなかった</td>
+      <td>Grand Leader / Sub-Leader が永久に未割当 → 無限ループ</td>
+      <td>n=1 用の特殊ケースを n&gt;1 の通常経路に流用していた</td>
+    </tr>
+    <tr>
+      <td><strong>2</strong></td>
+      <td>Leader が割り当てられるたびに M0 が減少し、Follower の idx が負になった</td>
+      <td>Follower が永久に未割当 → 無限ループ</td>
+      <td>Follower の idx 計算が M0 に依存しており、M0 の縮小に追従できなかった</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+
+<!-- ============================================================
+     1. アルゴリズムの仕組み
+     ============================================================ -->
+<h2 id="sec-alg">1. HDE アルゴリズムの仕組み</h2>
+
+<p>
+  HDE は繰り返しフェーズ $p = 1, 2, \ldots$ を回し、全プレイヤーへの割当が完了したら終了します。
+  各フェーズは <strong>探索</strong> → <strong>階層的通信</strong> → <strong>腕の割当判定</strong> の 3 ステップで構成されます。
+</p>
+
+<h3>プレイヤーの役割（内部ランク $j$ で決まる）</h3>
+<p>
+  HDE は $n = |\mathcal{G}|$ 本の good arms を通信チャンネルとして使うために、
+  プレイヤーを $j$（内部ランク）で以下の 3 役割に分けます。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <thead><tr><th>役割</th><th>条件</th><th>担当</th><th>担当チャンネル</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="badge gl">Grand Leader</span></td>
+      <td>$j = 1$</td>
+      <td>accept/reject 判定・全通信の統括</td>
+      <td>$\tilde{k}_1$（good_arms[0]）</td>
+    </tr>
+    <tr>
+      <td><span class="badge sl">Sub-Leader</span></td>
+      <td>$2 \leq j \leq n$</td>
+      <td>グループ内の統計を集約し Grand Leader に送る</td>
+      <td>$\tilde{k}_j$（good_arms[j-1]）</td>
+    </tr>
+    <tr>
+      <td><span class="badge fl">Follower</span></td>
+      <td>$j > n$</td>
+      <td>所属グループの Sub-Leader に統計を送る</td>
+      <td>（チャンネルを持たない）</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  Follower $m$ の所属グループ $g$ は
+  $g = \bigl((j_m - 1) \bmod n\bigr) + 1$
+  で決まります。
+</p>
+
+<h3>各フェーズの処理</h3>
+
+<div class="steps">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <strong>探索フェーズ（Sequential Hopping）</strong><br>
+      各プレイヤーは active arms $\mathcal{K}$ をラウンドロビンで順に引きます。
+      フェーズ $p$ でのトータル試行回数は：
+      <div class="math-box">
+        $$T_{\text{explore}} = |\mathcal{K}| \cdot 2^p \cdot \left\lceil \ln \frac{1}{\delta} \right\rceil$$
+      </div>
+      各プレイヤーが異なる腕から開始することで、衝突を避けつつ全腕をカバーします
+      （開始位置: $(j-1) \bmod |\mathcal{K}|$）。
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <strong>階層的通信（Hierarchical Information Exchange）</strong><br>
+      各プレイヤーの推定値を Follower → Sub-Leader → Grand Leader と集約します。
+      メッセージ長 $Q = \lceil p/2 + 3 \rceil$ ビットを使い、
+      通信コスト $|{\mathcal{K}}| \cdot Q \cdot \tau$ ステップをシミュレートします。
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <strong>AcceptReject 判定（Grand Leader が実行）</strong><br>
+      集約推定値 $\hat{\rho}[k]$ と信頼半径 $B[k]$ を計算し、各腕を accept / reject に振り分けます：
+      <div class="math-box">
+        <div class="math-label">集約推定値</div>
+        $$\hat{\rho}[k] = \frac{\displaystyle\sum_m \hat{\mu}[k,m] \cdot N[k,m]}{\displaystyle\sum_m N[k,m]}$$
+        <div class="math-label" style="margin-top:12px">信頼半径</div>
+        $$B[k] = \sqrt{\frac{2\ln(1/\delta)}{\displaystyle\sum_m N[k,m]}} + 2^{-p/2 - 3}$$
+        <div class="math-label" style="margin-top:12px">Accept 条件（top-$M'$ に入ることが確実）</div>
+        $$\bigl|\{i \in \mathcal{K} : \hat{\rho}[k] - B[k] \geq \hat{\rho}[i] + B[i]\}\bigr| \geq |\mathcal{K}| - M'$$
+        <div class="math-label" style="margin-top:12px">Reject 条件（top-$M'$ に入らないことが確実）</div>
+        $$\bigl|\{i \in \mathcal{K} : \hat{\rho}[i] - B[i] \geq \hat{\rho}[k] + B[k]\}\bigr| \geq M'$$
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <strong>AssignAndUpdate（腕の割当と active sets の更新）</strong><br>
+      判定結果を元に各プレイヤーへ腕を割り当て、active arms と active players 数 $M'$ を更新します。
+      <strong>ここにバグがありました。</strong>次のセクションで詳しく説明します。
+    </div>
+  </div>
+</div>
+
+<h3>AssignAndUpdate の設計思想（元の擬似コード）</h3>
+<p>
+  論文の補完擬似コードでは、以下のように腕を割り当てます。
+</p>
+
+<div class="math-box">
+  <div class="math-label">割当候補集合（good arms を除外）</div>
+  $$\mathcal{C}_{\text{assign}} = \mathcal{C}_{\text{accept}} \setminus \mathcal{G}$$
+  <div class="math-label" style="margin-top:12px">各プレイヤーの割当インデックス（0-based）</div>
+  $$\text{idx}(j) = M' - j$$
+  <div class="math-label" style="margin-top:12px">割当</div>
+  $$f \leftarrow \mathcal{C}_{\text{assign}}[\text{idx}(j)] \quad \text{if} \quad 0 \leq \text{idx}(j) < |\mathcal{C}_{\text{assign}}|$$
+</div>
+
+<p>
+  この式の直感は「<strong>ランクが大きいプレイヤーから順に腕を割り当てる</strong>」です。
+  $j$ が小さい（ランクが高い）ほど idx が大きく、リストの後ろの腕を取ります。
+  具体例: $M' = 4$ のとき、
+</p>
+<ul>
+  <li>$j=4$（最大ランク Follower）: $\text{idx} = 4 - 4 = 0$ → <code>C_assign[0]</code></li>
+  <li>$j=3$: $\text{idx} = 4 - 3 = 1$ → <code>C_assign[1]</code></li>
+  <li>$j=2$: $\text{idx} = 4 - 2 = 2$ → <code>C_assign[2]</code></li>
+  <li>$j=1$（Grand Leader）: $\text{idx} = 4 - 1 = 3$ → <code>C_assign[3]</code></li>
+</ul>
+<p>
+  これは <strong>$n=1$（Huang 2022 との互換ケース）では正しく動作します</strong>。
+  しかし $n > 1$ では 2 つのバグが発生します。
+</p>
+
+
+<!-- ============================================================
+     2. バグ 1
+     ============================================================ -->
+<h2 id="sec-bug1">2. バグ 1 — Good arms が除外されて Leader への割当経路がない</h2>
+
+<div class="callout error">
+  <strong>バグの本質</strong>
+  $\mathcal{C}_{\text{assign}} = \mathcal{C}_{\text{accept}} \setminus \mathcal{G}$ で good arms が除外されているため、
+  $n > 1$ のとき Grand Leader と Sub-Leader が割り当てを受けられる腕が存在しません。
+  彼らは毎フェーズ「割当なし」のまま通過し、while ループが終了しません。
+</div>
+
+<h3>なぜ Leader が割り当てを受けられないのか</h3>
+
+<p>
+  good arms は常に C_accept に入り続けます（平均報酬が高いため accept 判定される）。
+  しかし $\mathcal{C}_{\text{assign}}$ はその good arms を除外した集合なので、
+  good arms は誰にも割り当てられません。
+</p>
+
+<p>
+  $n > 1$ の場合、active arms が最終的に good arms だけになります。
+  すると C_accept = $\mathcal{G}$ となり、C_assign は空になります。
+  <strong>誰にも割り当てられるものがなくなる</strong>にもかかわらず、
+  Grand Leader と Sub-Leader は <code>f[m] == -1</code> のままなので while ループは続きます。
+</p>
+
+<h3>具体例: $K=5,\ M=3,\ n=2$</h3>
+
+<p>
+  good_arms $= [\text{arm0}, \text{arm1}]$、初期 $M' = 3$
+  とします。各プレイヤーの割当 idx を計算してみます：
+</p>
+
+<div class="math-box">
+  $$\text{C\_accept} = \{\text{arm0}, \text{arm1}, \text{arm3}\} \quad \Rightarrow \quad \mathcal{C}_{\text{assign}} = \{\text{arm3}\} \quad (|\mathcal{C}_{\text{assign}}| = 1)$$
+  <br>
+  $$j=1\ (\text{Grand Leader}):\quad \text{idx} = 3 - 1 = 2 \geq 1 \quad \Rightarrow \quad \text{条件不成立} \times$$
+  $$j=2\ (\text{Sub-Leader}):\quad \text{idx} = 3 - 2 = 1 \geq 1 \quad \Rightarrow \quad \text{条件不成立} \times$$
+  $$j=3\ (\text{Follower}):\quad \text{idx} = 3 - 3 = 0 < 1 \quad \Rightarrow \quad f = \text{arm3} \checkmark$$
+</div>
+
+<p>
+  Follower だけが arm3 を取れます。arm0 と arm1 は accept されても誰にも割り当てられないため、
+  active_arms から外れません。次フェーズ以降も C_assign が空のままになり、
+  Grand Leader と Sub-Leader は永遠に未割当です。
+</p>
+
+<div class="anim-widget" id="anim1">
+  <div class="anim-title">インタラクティブ図解 — バグ 1 の発生メカニズム（K=5, M=3, n=2）</div>
+  <div class="anim-stage" id="anim1-stage">
+    <p class="text-muted">「次へ」を押してステップを進めてください。</p>
+  </div>
+  <div class="anim-controls">
+    <button class="btn" id="anim1-prev" onclick="anim1Step(-1)" disabled>← 前へ</button>
+    <button class="btn" id="anim1-next" onclick="anim1Step(1)">次へ →</button>
+    <button class="btn" onclick="anim1Reset()">リセット</button>
+    <span class="step-info" id="anim1-info"></span>
+  </div>
+</div>
+
+<div class="callout warn">
+  <strong>なぜ n=1 では問題が出なかったか</strong>
+  n=1 は別ブランチで処理されており、Grand Leader が <code>good_arm</code> 自体を
+  受け取る特殊パスが実装済みでした。
+  n&gt;1 の通常経路（AssignAndUpdate 擬似コード準拠）はこのパスを通らず、
+  C_assign から除外された good arms の割当経路が存在しませんでした。
+</div>
+
+<h3>元のコード（バグあり）</h3>
+<pre><code><span class="kw">else</span>:
+    <span class="cm"># n>1: 全プレイヤーが同じ idx = M0 - j を使う（バグあり）</span>
+    <span class="hi">C_assign = [a <span class="kw">for</span> a <span class="kw">in</span> C_accept <span class="kw">if</span> a <span class="kw">not in</span> good_set]  <span class="ann"># ← good arms を除外</span></span>
+    <span class="kw">for</span> m <span class="kw">in</span> range(M):
+        <span class="kw">if</span> f[m] == <span class="num">-1</span>:
+            idx = M0 - j_list[m]
+            <span class="kw">if</span> <span class="num">0</span> <= idx < len(C_assign):
+                f[m] = C_assign[idx]
+    <span class="cm"># Leader (j=1,2,...,n) の idx は大きく、C_assign は短いので条件不成立 → 永遠に未割当</span></code></pre>
+
+
+<!-- ============================================================
+     3. バグ 2
+     ============================================================ -->
+<h2 id="sec-bug2">3. バグ 2 — M0 のデクリメントで Follower の idx が負になる</h2>
+
+<div class="callout error">
+  <strong>バグの本質（バグ 1 の中間修正後に顕在化）</strong>
+  バグ 1 の修正で「Leader は担当チャンネルが直接 accept されたら割り当てる」経路を追加しました。
+  しかし Follower はまだ $\text{idx} = M_0 - j$ を使っていました。
+  Leader が 1 人割り当てられるたびに $M_0$ がデクリメントされるため、
+  後続フェーズで $\text{idx} = M_0 - j < 0$ となり Follower が永久に未割当になります。
+</div>
+
+<h3>問題の発生メカニズム</h3>
+
+<p>
+  $\text{idx}(j) = M_0 - j$ という式は「$M_0$（現在の active players 数）と 絶対ランク $j$ の差」です。
+  この式が正しく機能するには、<strong>誰かが割り当てられるたびに $M_0$ と $j$ が同じペースで縮む</strong>必要があります。
+</p>
+
+<p>
+  しかしバグ 1 の中間修正では Leader への割当が <strong>別フェーズで 1 人ずつ</strong>発生します。
+  Leader が割り当てられるたびに $M_0$ が先に縮み、
+  まだ割り当てられていない Follower の $j$ は変わらないため、
+  $\text{idx} = M_0 - j$ が負になります。
+</p>
+
+<h3>具体例: $K=6,\ M=3,\ n=2$</h3>
+
+<p>
+  <span class="badge gl">j=1 Grand Leader</span>
+  <span class="badge sl">j=2 Sub-Leader</span>
+  <span class="badge fl">j=3 Follower</span>
+  &nbsp; good_arms $= [\text{arm0}, \text{arm1}]$
+</p>
+
+<div class="math-box">
+  <strong>初期状態:</strong> $f = [-1, -1, -1],\quad M_0 = 3$
+  <br><br>
+  <strong>フェーズ p=2:</strong> arm0 $\in \mathcal{C}_{\text{accept}}$ → Grand Leader に arm0 を割当<br>
+  $\quad f = [\text{arm0}, -1, -1],\quad M_0: 3 \to 2$
+  <br><br>
+  <strong>フェーズ p=3:</strong> arm1 $\in \mathcal{C}_{\text{accept}}$ → Sub-Leader に arm1 を割当<br>
+  $\quad f = [\text{arm0}, \text{arm1}, -1],\quad M_0: 2 \to 1$
+  <br><br>
+  <strong>フェーズ p=4 以降（Follower j=3 の場合）:</strong>
+  $$\text{idx} = M_0 - j = 1 - 3 = -2 \quad \Rightarrow \quad 0 \leq -2 \text{ が偽} \Rightarrow \text{条件不成立} \times$$
+  <br>
+  C_assign_list に腕が残っていても、条件が満たされないため Follower は永遠に未割当です。
+</div>
+
+<div class="anim-widget" id="anim2">
+  <div class="anim-title">インタラクティブ図解 — バグ 2 の発生メカニズム（M0 デクリメント連鎖）</div>
+  <div class="anim-stage" id="anim2-stage">
+    <p class="text-muted">「次へ」を押してステップを進めてください。</p>
+  </div>
+  <div class="anim-controls">
+    <button class="btn" id="anim2-prev" onclick="anim2Step(-1)" disabled>← 前へ</button>
+    <button class="btn" id="anim2-next" onclick="anim2Step(1)">次へ →</button>
+    <button class="btn" onclick="anim2Reset()">リセット</button>
+    <span class="step-info" id="anim2-info"></span>
+  </div>
+</div>
+
+<div class="callout warn">
+  <strong>問題の根本</strong>
+  $\text{idx} = M_0 - j$ は「現在の active players 数 $M_0$」に依存します。
+  Leader が先に割り当てられると $M_0$ が先に縮小し、
+  未割当の Follower の絶対ランク $j$ が相対的に大きくなりすぎます。
+  <br><br>
+  <strong>解決策:</strong> Follower の割当は $M_0$ に依存しない
+  「未割当 Follower の中での相対順位」を使う。
+</div>
+
+<h3>中間修正コード（バグ 1 修正後・バグ 2 が残る状態）</h3>
+<pre><code><span class="kw">else</span>:
+    C_accept_set = set(C_accept)
+    C_assign = [a <span class="kw">for</span> a <span class="kw">in</span> C_accept <span class="kw">if</span> a <span class="kw">not in</span> good_set]
+
+    <span class="cm"># Leader に担当チャンネルを割当（バグ 1 修正）</span>
+    <span class="fix"><span class="kw">for</span> m <span class="kw">in</span> range(M):
+        <span class="kw">if</span> f[m] == <span class="num">-1</span> <span class="kw">and</span> j_list[m] <= n:
+            channel = good_arms[j_list[m] - <span class="num">1</span>]
+            <span class="kw">if</span> channel <span class="kw">in</span> C_accept_set:
+                f[m] = channel</span>
+
+    <span class="cm"># Follower はまだ idx = M0 - j を使う（バグ 2 残存）</span>
+    <span class="kw">for</span> m <span class="kw">in</span> range(M):
+        <span class="kw">if</span> f[m] == <span class="num">-1</span> <span class="kw">and</span> j_list[m] > n:
+            <span class="hi">idx = M0 - j_list[m]  <span class="ann"># ← M0 が Leader 割当で縮小するため idx が負になる</span></span>
+            <span class="kw">if</span> <span class="num">0</span> <= idx < len(C_assign):
+                f[m] = C_assign[idx]</code></pre>
+
+
+<!-- ============================================================
+     4. 最終修正
+     ============================================================ -->
+<h2 id="sec-fix">4. 最終修正</h2>
+
+<div class="callout ok">
+  <strong>修正方針</strong>
+  <ul style="margin-top:6px">
+    <li><strong>Leader（$j \leq n$）:</strong>
+      担当チャンネル $\tilde{k}_j = \text{good\_arms}[j-1]$ が $\mathcal{C}_{\text{accept}}$ に入ったとき、そのまま割り当てる。$M_0$ に依存しない。</li>
+    <li><strong>Follower（$j > n$）:</strong>
+      未割当 Follower を $j$ の降順にソートし、<code>enumerate</code> で idx = 0, 1, 2, … を生成して <code>C_assign_list</code> に対応させる。$M_0$ に依存しない。</li>
+  </ul>
+</div>
+
+<h3>修正後の割当式</h3>
+
+<div class="math-box">
+  <div class="math-label">Leader 割当（$j \leq n$ の各プレイヤー）</div>
+  $$f \leftarrow \tilde{k}_j = \text{good\_arms}[j-1] \quad \text{if } \tilde{k}_j \in \mathcal{C}_{\text{accept}}$$
+  <div class="math-label" style="margin-top:14px">Follower 割当（$j > n$ の未割当プレイヤー）</div>
+  $$\mathcal{C}_{\text{assign\_list}} = [a \in \mathcal{C}_{\text{accept}} : a \notin \mathcal{G}]$$
+  $$\text{followers} = \text{sort}_{j \downarrow}\bigl\{m : f[m] = -1,\ j_m > n\bigr\}$$
+  $$f[\text{followers}[i]] \leftarrow \mathcal{C}_{\text{assign\_list}}[i] \quad (i = 0, 1, 2, \ldots)$$
+</div>
+
+<p>
+  Follower の idx を <code>enumerate</code> で生成することで、
+  Leader が何人割り当てられても $M_0$ に関係なく idx が 0, 1, 2, … と正の値になります。
+</p>
+
+<div class="diff-container">
+  <div class="diff-panel">
+    <div class="diff-header bad">✗ バグあり（バグ 1 の状態）</div>
+    <pre><code><span class="kw">else</span>:
+    C_assign = [a <span class="kw">for</span> a <span class="kw">in</span> C_accept
+                <span class="kw">if</span> a <span class="kw">not in</span> good_set]
+    <span class="kw">for</span> m <span class="kw">in</span> range(M):
+        <span class="kw">if</span> f[m] == <span class="num">-1</span>:
+            <span class="hi">idx = M0 - j_list[m]</span>
+            <span class="kw">if</span> <span class="num">0</span> <= idx < len(C_assign):
+                f[m] = C_assign[idx]
+<span class="cm"># Leader (j≤n) は C_assign に届かない</span>
+<span class="cm"># → 永久に未割当</span></code></pre>
+  </div>
+  <div class="diff-panel">
+    <div class="diff-header good">✓ 最終修正後</div>
+    <pre><code><span class="kw">else</span>:
+    C_accept_set = set(C_accept)
+    <span class="fix">C_assign_list = [a <span class="kw">for</span> a <span class="kw">in</span> C_accept
+                     <span class="kw">if</span> a <span class="kw">not in</span> good_set]
+    <span class="cm"># 1. Leader: 担当チャンネルを直接割当</span>
+    <span class="kw">for</span> m <span class="kw">in</span> range(M):
+        <span class="kw">if</span> f[m]==<span class="num">-1</span> <span class="kw">and</span> j_list[m]<=n:
+            ch = good_arms[j_list[m]-<span class="num">1</span>]
+            <span class="kw">if</span> ch <span class="kw">in</span> C_accept_set:
+                f[m] = ch
+    <span class="cm"># 2. Follower: 相対 rank (enumerate)</span>
+    followers = sorted(
+        [m <span class="kw">for</span> m <span class="kw">in</span> range(M)
+         <span class="kw">if</span> f[m]==<span class="num">-1</span> <span class="kw">and</span> j_list[m]>n],
+        key=<span class="kw">lambda</span> m: j_list[m],
+        reverse=<span class="kw">True</span>,
+    )
+    <span class="kw">for</span> idx, m <span class="kw">in</span> enumerate(followers):
+        <span class="kw">if</span> idx < len(C_assign_list):
+            f[m] = C_assign_list[idx]</span></code></pre>
+  </div>
+</div>
+
+<h3>なぜ enumerate が $M_0$ に依存しないのか</h3>
+
+<div class="math-box">
+  <div class="math-label">修正前: M0 に依存して壊れる例</div>
+  $$M_0 = 1,\quad j = 3 \quad \Rightarrow \quad \text{idx} = 1 - 3 = -2 \quad \Rightarrow \quad \text{条件不成立（永久ループ）}$$
+  <div class="math-label" style="margin-top:12px">修正後: enumerate で常に 0 以上</div>
+  $$\text{followers} = [\text{player with } j=3], \quad \text{enumerate} \Rightarrow (0, \text{player}) \quad \Rightarrow \quad f = \mathcal{C}_{\text{assign\_list}}[0]$$
+</div>
+
+
+<!-- ============================================================
+     5. 検証結果
+     ============================================================ -->
+<h2 id="sec-verify">5. 検証結果</h2>
+
+<h3>テストの更新</h3>
+<p>
+  修正前、2 つのテストが「割当失敗（バグの挙動）」を期待していました。
+  修正後はアルゴリズムが成功するため、テスト期待値を更新しました。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr><th>旧テスト名</th><th>旧の期待</th><th>新テスト名</th><th>新の期待</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>test_assignment_failure_is_exposed_without_fallback</code></td>
+      <td class="err">割当失敗を検出</td>
+      <td><code>test_n_greater_than_1_assignment_success</code></td>
+      <td class="ok">全員割当成功・重複なし</td>
+    </tr>
+    <tr>
+      <td><code>test_three_players_failure_is_exposed_without_fallback</code></td>
+      <td class="err">M=3 割当失敗</td>
+      <td><code>test_three_players_n2_assignment_success</code></td>
+      <td class="ok">全員割当成功・top-3 内</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>pytest 結果（修正後）</h3>
+<pre><code>$ pytest tests/algorithms/homogeneous/izumi2026/ -v
+
+tests/.../test_algorithm5_run.py::TestFullRunIzumi::test_assigned_arms_no_duplicate          <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestFullRunIzumi::test_n_greater_than_1_assignment_success <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestFullRunIzumi::test_phase_durations_recorded            <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestFullRunIzumi::test_good_arms_recorded_in_player_state  <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestFullRunIzumi::test_three_players_n2_assignment_success <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestN1Compatibility::test_n1_assignment_success            <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestN1Compatibility::test_n1_and_huang2022_both_succeed    <span class="text-green fw7">PASSED</span>
+tests/.../test_algorithm5_run.py::TestN1Compatibility::test_n1_no_duplicate_assignment       <span class="text-green fw7">PASSED</span>
+
+<span class="text-green fw7">8 passed in &lt; 30s</span></code></pre>
+
+<h3>実験結果（K=20, M=8, n=1..6, trials=100）</h3>
+
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr><th>n</th><th>修正前 success_rate</th><th>修正後 success_rate</th><th>状態</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td class="ok">正常</td><td class="ok">正常</td><td class="ok">変化なし（n=1 は別ブランチ）</td></tr>
+    <tr><td>2</td><td class="err">0%（全失敗）</td><td class="ok">正常値に回復</td><td class="ok">修正により解決</td></tr>
+    <tr><td>3</td><td class="err">0%（全失敗）</td><td class="ok">正常値に回復</td><td class="ok">修正により解決</td></tr>
+    <tr><td>4</td><td class="err">0%（全失敗）</td><td class="ok">正常値に回復</td><td class="ok">修正により解決</td></tr>
+    <tr><td>5</td><td class="err">0%（全失敗）</td><td class="ok">正常値に回復</td><td class="ok">修正により解決</td></tr>
+    <tr><td>6</td><td class="err">0%（全失敗）</td><td class="ok">正常値に回復</td><td class="ok">修正により解決</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="callout ok">
+  <strong>まとめ</strong>
+  バグ 1（C_assign 除外による Leader 割当経路なし）と
+  バグ 2（M0 デクリメントによる Follower idx 負値）を独立に分析・修正しました。
+  修正後は n=1..6 すべてで全テストがパスし、実験でも割当成功率が正常値に回復しました。
+</div>
+
+</div><!-- .page -->
+
+<script>
+// =====================================================================
+// ANIMATION 1 — Bug 1: C_assign exclusion
+// =====================================================================
+const anim1Steps = [
+  {
+    title: "初期状態: K=5, M=3, n=2",
+    render: () => `
+      <p style="margin-bottom:14px">
+        <span class="badge gl">j=1 Grand Leader</span>
+        <span class="badge sl">j=2 Sub-Leader</span>
+        <span class="badge fl">j=3 Follower</span>
+        &nbsp;&nbsp;<strong>good_arms = [arm0, arm1]</strong>&nbsp; M<sub>0</sub> = 3
+      </p>
+      <div class="players">
+        ${pc('Grand Leader','j=1','-1','','')}
+        ${pc('Sub-Leader',  'j=2','-1','','')}
+        ${pc('Follower',    'j=3','-1','','')}
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:12px">active_arms: arm0, arm1, arm2, arm3, arm4</p>
+    `
+  },
+  {
+    title: "フェーズ p=1: Grand Leader が AcceptReject を実行",
+    render: () => `
+      <p style="margin-bottom:10px">集約推定値と信頼半径から、各腕を accept / reject に振り分けます。</p>
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">C_accept（top-3 に入ることが確実な腕）:</div>
+        <div class="arm-row">
+          ${ac('arm0','accept')} ${ac('arm1','accept')} ${ac('arm3','accept')}
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin:10px 0 6px;font-weight:600">C_reject（top-3 に入らないことが確実な腕）:</div>
+        <div class="arm-row">${ac('arm4','reject')}</div>
+      </div>
+      <p style="font-size:13px;color:var(--muted)">arm2 はまだどちらでもない → active_arms に残る</p>
+    `
+  },
+  {
+    title: "C_assign = C_accept − G（good arms を除外）",
+    render: () => `
+      <p style="margin-bottom:10px">
+        AssignAndUpdate: <strong>good_set = {arm0, arm1}</strong> を C_accept から除外すると…
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">C_accept</div>
+          <div class="arm-row">${ac('arm0','good')} ${ac('arm1','good')} ${ac('arm3','accept')}</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted)">−</div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">good_set</div>
+          <div class="arm-row">${ac('arm0','good')} ${ac('arm1','good')}</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted)">=</div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">C_assign</div>
+          <div class="arm-row">${ac('arm3','assign')}</div>
+        </div>
+      </div>
+      <p style="font-size:13px"><code>len(C_assign) = 1</code> — arm3 が 1 本だけ</p>
+    `
+  },
+  {
+    title: "idx = M0 − j を各プレイヤーで計算（M0=3）",
+    render: () => `
+      <p style="margin-bottom:10px">
+        条件: <code>0 ≤ idx &lt; len(C_assign) = 1</code> を満たすか？
+      </p>
+      <div class="players">
+        ${pc('Grand Leader','j=1','-1','err','idx = 3−1 = 2 ≥ 1 ❌')}
+        ${pc('Sub-Leader',  'j=2','-1','err','idx = 3−2 = 1 ≥ 1 ❌')}
+        ${pc('Follower',    'j=3','arm3','ok','idx = 3−3 = 0 < 1 ✓')}
+      </div>
+      <p style="color:var(--red);margin-top:12px;font-weight:600;font-size:14px">
+        Grand Leader と Sub-Leader は idx が範囲外 → 割当なし
+      </p>
+    `
+  },
+  {
+    title: "フェーズ p=2 以降: good arms が active_arms に居続ける",
+    render: () => `
+      <p style="margin-bottom:10px">
+        arm0, arm1 は accept されても C_assign に入らないため誰にも割り当てられません。<br>
+        reject もされないため active_arms から出ません。
+      </p>
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">p=2: active_arms（arm2 と arm3 が消えた後）</div>
+        <div class="arm-row">
+          ${ac('arm0','stuck')} ${ac('arm1','stuck')}
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">C_accept = {arm0, arm1}, C_assign = [] (空)</div>
+      </div>
+      <div class="players">
+        ${pc('Grand Leader','j=1','-1','err','idx = 2−1 = 1 ≥ 0… でも C_assign 空 ❌')}
+        ${pc('Sub-Leader',  'j=2','-1','err','idx = 2−2 = 0 < 0?… C_assign 空 ❌')}
+        ${pc('Follower',    'j=3','arm3','done','割当済み')}
+      </div>
+      <p style="color:var(--red);font-weight:700;margin-top:14px;font-size:14px">
+        → <code>all(f[m] != -1)</code> が永遠に成立しない → 無限ループ 🔴
+      </p>
+    `
+  },
+];
+
+let a1i = -1;
+function anim1Step(d) { a1i = Math.min(anim1Steps.length-1, Math.max(0, a1i+d)); renderA1(); }
+function anim1Reset()  { a1i = -1; renderA1(); }
+function renderA1() {
+  const stage = document.getElementById('anim1-stage');
+  const info  = document.getElementById('anim1-info');
+  const prev  = document.getElementById('anim1-prev');
+  const next  = document.getElementById('anim1-next');
+  if (a1i < 0) {
+    stage.innerHTML = '<p class="text-muted">「次へ」を押してステップを進めてください。</p>';
+    info.textContent = '';
+  } else {
+    const s = anim1Steps[a1i];
+    stage.innerHTML = `<div style="font-size:13px;color:var(--orange);font-weight:700;margin-bottom:12px">Step ${a1i+1}/${anim1Steps.length}: ${s.title}</div>` + s.render();
+  }
+  prev.disabled = a1i <= 0;
+  next.disabled = a1i >= anim1Steps.length - 1;
+  info.textContent = a1i >= 0 ? `${a1i+1} / ${anim1Steps.length}` : '';
+}
+
+// =====================================================================
+// ANIMATION 2 — Bug 2: M0 decrement
+// =====================================================================
+const anim2Steps = [
+  {
+    title: "初期状態: K=6, M=3, n=2",
+    render: () => `
+      <p style="margin-bottom:12px">
+        中間修正適用済み: Leader には担当チャンネルが直接割り当てられます。<br>
+        Follower はまだ <code>idx = M0 − j</code> を使います。
+      </p>
+      <div class="players">
+        ${pc('Grand Leader','j=1','-1','active','担当: arm0')}
+        ${pc('Sub-Leader',  'j=2','-1','active','担当: arm1')}
+        ${pc('Follower',    'j=3','-1','active','idx = M0 − 3')}
+      </div>
+      <p style="margin-top:12px">初期 M<sub>0</sub> = <strong>3</strong></p>
+      <p style="font-size:13px;color:var(--muted)">Follower の期待 idx = 3 − 3 = 0 ✓（この時点では正しい）</p>
+    `
+  },
+  {
+    title: "p=2: arm0 が accept → Grand Leader に割当",
+    render: () => `
+      <p style="margin-bottom:10px">
+        arm0 ∈ C_accept。Grand Leader（j=1）の担当チャンネルは <code>good_arms[0] = arm0</code>。
+      </p>
+      ${tl('p=2','arm0 ∈ C_accept → Grand Leader (j=1) に arm0 を割当','','active')}
+      <div class="players" style="margin-top:12px">
+        ${pc('Grand Leader','j=1','arm0 ✓','ok','担当チャンネル取得')}
+        ${pc('Sub-Leader',  'j=2','-1','active','まだ割当なし')}
+        ${pc('Follower',    'j=3','-1','active','まだ割当なし')}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+        <span>M<sub>0</sub>:</span>
+        <span class="delta-tag dec">3 → 2（−1）</span>
+        <span style="font-size:12px;color:var(--muted)">assigned_this_round = {arm0}</span>
+      </div>
+    `
+  },
+  {
+    title: "p=3: arm1 が accept → Sub-Leader に割当",
+    render: () => `
+      <p style="margin-bottom:10px">
+        arm1 ∈ C_accept。Sub-Leader（j=2）の担当チャンネルは <code>good_arms[1] = arm1</code>。
+      </p>
+      ${tl('p=3','arm1 ∈ C_accept → Sub-Leader (j=2) に arm1 を割当','','active')}
+      <div class="players" style="margin-top:12px">
+        ${pc('Grand Leader','j=1','arm0','done','割当済み')}
+        ${pc('Sub-Leader',  'j=2','arm1 ✓','ok','担当チャンネル取得')}
+        ${pc('Follower',    'j=3','-1','active','まだ割当なし')}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+        <span>M<sub>0</sub>:</span>
+        <span class="delta-tag dec">2 → 1（−1）</span>
+        <span style="font-size:12px;color:var(--muted)">assigned_this_round = {arm1}</span>
+      </div>
+    `
+  },
+  {
+    title: "p=4 以降: Follower の idx が負になる",
+    render: () => `
+      <p style="margin-bottom:10px;color:var(--red);font-weight:700;font-size:14px">
+        M<sub>0</sub> = 1, j = 3 → idx = 1 − 3 = −2 &lt; 0 → 条件不成立 ❌
+      </p>
+      ${tl('p=4+','C_assign に arm あり（例: arm2）','','bad')}
+      <div class="players" style="margin-top:12px">
+        ${pc('Grand Leader','j=1','arm0','done','割当済み')}
+        ${pc('Sub-Leader',  'j=2','arm1','done','割当済み')}
+        ${pc('Follower',    'j=3','-1','err','idx = 1−3 = −2 < 0 → 永久に未割当')}
+      </div>
+      <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px">
+        <div style="color:var(--muted);margin-bottom:6px;font-weight:600">コードで確認:</div>
+        <code>
+          M0 = 1 &nbsp; j_list[m] = 3<br>
+          idx = M0 - j_list[m] = 1 - 3 = <span style="color:var(--red);font-weight:700">-2</span><br>
+          if 0 &lt;= -2 &lt; len(C_assign):  <span style="color:var(--red)"># → False → 割当なし → 無限ループ</span>
+        </code>
+      </div>
+    `
+  },
+];
+
+let a2i = -1;
+function anim2Step(d) { a2i = Math.min(anim2Steps.length-1, Math.max(0, a2i+d)); renderA2(); }
+function anim2Reset()  { a2i = -1; renderA2(); }
+function renderA2() {
+  const stage = document.getElementById('anim2-stage');
+  const info  = document.getElementById('anim2-info');
+  const prev  = document.getElementById('anim2-prev');
+  const next  = document.getElementById('anim2-next');
+  if (a2i < 0) {
+    stage.innerHTML = '<p class="text-muted">「次へ」を押してステップを進めてください。</p>';
+    info.textContent = '';
+  } else {
+    const s = anim2Steps[a2i];
+    stage.innerHTML = `<div style="font-size:13px;color:var(--orange);font-weight:700;margin-bottom:12px">Step ${a2i+1}/${anim2Steps.length}: ${s.title}</div>` + s.render();
+  }
+  prev.disabled = a2i <= 0;
+  next.disabled = a2i >= anim2Steps.length - 1;
+  info.textContent = a2i >= 0 ? `${a2i+1} / ${anim2Steps.length}` : '';
+}
+
+// =====================================================================
+// Helpers
+// =====================================================================
+function pc(role, jval, assigned, state, note) {
+  const cls = {ok:'state-ok',err:'state-err',active:'state-active',done:'state-done','':''}[state]||'';
+  const color = assigned.startsWith('-') ? 'color:var(--muted)' : 'color:var(--green)';
+  return `<div class="player-card ${cls}">
+    <div class="role">${role}</div>
+    <div class="jval">${jval}</div>
+    <div class="assigned" style="${color}">f = ${assigned}</div>
+    ${note ? `<div class="idx-calc">${note}</div>` : ''}
+  </div>`;
+}
+
+function ac(name, type) {
+  return `<span class="arm-chip ${type}">${name}</span>`;
+}
+
+function tl(phase, body, extra, state) {
+  const cls = {active:'active',bad:'bad',dim:'dim','':''}[state]||'';
+  return `<div class="tl-row ${cls}">
+    <div class="tl-phase">${phase}</div>
+    <div class="tl-body">
+      <span>${body}</span>
+      ${extra ? `<span class="delta-tag ${state==='bad'?'inf':'dec'}">${extra}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+// =====================================================================
+// ToC scroll & highlight
+// =====================================================================
+function scrollToId(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+const sections = ['sec-intro','sec-alg','sec-bug1','sec-bug2','sec-fix','sec-verify'];
+const dots = document.querySelectorAll('.toc-dot');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const idx = sections.indexOf(e.target.id);
+      dots.forEach((d,i) => d.classList.toggle('active', i===idx));
+    }
+  });
+}, { threshold: 0.25 });
+sections.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) obs.observe(el);
+});
+</script>
+
+</body>
+</html>

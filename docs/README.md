@@ -9,6 +9,11 @@
 - [20260510_implementation_and_experiments.md](20260510_implementation_and_experiments.md)
   - シミュレーターの実装手順、比較実験設定、Claude Code への依頼テンプレート、Codex レビュー観点。
 
+### 実験ガイド
+
+- [20260522_experiment_guide.md](20260522_experiment_guide.md)
+  - 実験コマンド・パラメータ設定のリファレンス。プリセット一覧、全 CLI オプション、出力 CSV の列定義、テスト実行方法。
+
 ### 実装メモ
 
 - [implementation_notes.md](implementation_notes.md)
@@ -22,6 +27,10 @@
 
 - [20260518_bugfix_report.md](20260518_bugfix_report.md)
   - Huang 2022 / Izumi 2026 の実装バグ調査と修正レポート（T1 式、reject arm 確認チェック、τ_rank など）。
+
+- [20260522_bugfix_hde_n_greater_than_1.html](20260522_bugfix_hde_n_greater_than_1.html)
+  - HDE n>1 バグ（C_assign 除外による Leader 割当経路なし・M0 デクリメントによる Follower idx 負値）の原因・修正を
+    インタラクティブアニメーション付きで解説した HTML レポート。
 
 ## 擬似コード
 

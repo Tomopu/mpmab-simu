@@ -198,14 +198,33 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                         if 0 <= idx < len(C0_accept):
                             f[m] = C0_accept[idx]
                 else:
+                    # n>1: Grand Leader (j=1) と Sub-Leader (2<=j<=n) は
+                    # 担当チャンネル good_arms[j-1] が C_accept に入ったとき割り当て。
+                    # Follower (j>n) は未割当フォロワー内の相対 rank ベースで割り当て。
+                    #
+                    # _try_assign（idx = M0 - j）を使わない理由:
+                    #   leader が先に割り当てられると M0 が減少し、
+                    #   idx = M0 - j が負になってフォロワーが永久に未割当になる。
+                    C_accept_set = set(C_accept)
+                    C_assign_list = [a for a in C_accept if a not in good_set]
+
+                    # 1. leader 割り当て（j<=n）
                     for m in range(M):
-                        if f[m] == -1:
-                            f[m] = self._try_assign(
-                                j=j_list[m],
-                                good_arms=good_arms,
-                                M_active=M0,
-                                C_accept=C_accept,
-                            )
+                        if f[m] == -1 and j_list[m] <= n:
+                            channel_arm = good_arms[j_list[m] - 1]
+                            if channel_arm in C_accept_set:
+                                f[m] = channel_arm
+
+                    # 2. follower 割り当て（j>n）: 未割当フォロワーを j の降順にソートし、
+                    #    C_assign_list の先頭から順に割り当てる（j が大きいほど先に割り当て）
+                    unassigned_followers = sorted(
+                        [m for m in range(M) if f[m] == -1 and j_list[m] > n],
+                        key=lambda m: j_list[m],
+                        reverse=True,
+                    )
+                    for idx, m in enumerate(unassigned_followers):
+                        if idx < len(C_assign_list):
+                            f[m] = C_assign_list[idx]
 
                 # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
 

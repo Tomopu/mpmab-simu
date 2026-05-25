@@ -67,8 +67,14 @@ class TestFullRunIzumi:
             f"assigned_arm に重複がある: {assigned}"
         )
 
-    def test_assignment_failure_is_exposed_without_fallback(self):
-        """fallback を使わず、未割当がある場合はそのまま観測できること。"""
+    def test_n_greater_than_1_assignment_success(self):
+        """n>1 のとき Grand Leader / Sub-Leader も含めて全員割り当てが成功すること。
+
+        旧実装では n>1 で Grand Leader / Sub-Leader への割当経路がなく、
+        good arms が active_arms に残り続けるデッドロックが発生していた（問題1）。
+        修正後は j<=n のプレイヤーが good_arms[j-1] を受け取る経路が確保され、
+        この seed で全員割り当てが成功する。
+        """
         # Given
         env, runner = make_env_and_runner(seed=42)
         algo = make_algo(n=N_GOOD, seed=42)
@@ -79,12 +85,11 @@ class TestFullRunIzumi:
         assigned = [ps.assigned_arm for ps in player_states]
 
         # Then
-        assert any(a == -1 for a in assigned), (
-            "fallback を外した設定では、この seed の未割当を隠さず返す"
+        assert all(a >= 0 for a in assigned), (
+            f"n={N_GOOD} で未割当プレイヤーが存在する: {assigned}"
         )
-        assigned_non_negative = [a for a in assigned if a >= 0]
-        assert len(assigned_non_negative) == len(set(assigned_non_negative)), (
-            f"割当済み arm に重複がある: {assigned}"
+        assert len(assigned) == len(set(assigned)), (
+            f"assigned_arm に重複がある: {assigned}"
         )
 
     def test_phase_durations_recorded(self):
@@ -128,8 +133,13 @@ class TestFullRunIzumi:
                     f"player {i} の good arm {k} の真の平均報酬が 0"
                 )
 
-    def test_three_players_failure_is_exposed_without_fallback(self):
-        """M=3, n=2 でも補完割当で未完成状態を隠さないこと。"""
+    def test_three_players_n2_assignment_success(self):
+        """M=3, n=2 で全員が重複なく top-M arm に割り当てられること。
+
+        旧実装では n>1 のデッドロックにより Grand Leader / Sub-Leader が未割当のまま
+        active_arms に good arms が残り続けていた。
+        修正後は担当チャンネル割り当て + フォロワーの相対 rank 割り当てにより全員完了する。
+        """
         # Given
         means = [0.9, 0.8, 0.7, 0.2, 0.1, 0.05]
         env = BernoulliMPMABEnv(means=means, num_players=3, seed=7)
@@ -143,12 +153,15 @@ class TestFullRunIzumi:
         assigned = [ps.assigned_arm for ps in result["player_states"]]
 
         # Then
-        assert any(a == -1 for a in assigned), (
-            f"fallback なしの未割当状態が観測できない: {assigned}"
+        assert all(a >= 0 for a in assigned), (
+            f"M=3 n=2 で未割当プレイヤーが存在する: {assigned}"
         )
-        assigned_non_negative = [a for a in assigned if a >= 0]
-        assert len(assigned_non_negative) == len(set(assigned_non_negative)), (
+        assert len(assigned) == len(set(assigned)), (
             f"割当済み arm に重複がある: {assigned}"
+        )
+        top3_arms = set(sorted(range(len(means)), key=lambda k: means[k], reverse=True)[:3])
+        assert all(a in top3_arms for a in assigned), (
+            f"top-3 arm 以外が割り当てられている: {assigned}, top3={top3_arms}"
         )
 
 

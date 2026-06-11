@@ -1,11 +1,13 @@
-# Homogeneous MPMAB 実装メモ
+# MPMAB 実装メモ
 
-Step 1〜6 の実装内容をまとめたドキュメント。
+Homogeneous / Heterogeneous 全 4 モデルの実装内容をまとめたドキュメント。
 ソースパスの対応、各コンポーネントの概要、簡略化箇所、実験コマンドを記録する。
 
 ---
 
 ## ソースパス対応
+
+### Homogeneous
 
 | 実装内容 | ソースパス |
 |---------|-----------|
@@ -15,13 +17,31 @@ Step 1〜6 の実装内容をまとめたドキュメント。
 | アルゴリズム基底クラス | `simulator/algorithms/base.py` |
 | Huang 2022 | `simulator/algorithms/homogeneous/huang2022/algorithm.py` |
 | Izumi 2026 | `simulator/algorithms/homogeneous/izumi2026/algorithm.py` |
-| 評価指標 | `simulator/utils/metrics.py` |
+| 評価指標（Homogeneous） | `simulator/utils/metrics.py` — `compute_metrics` |
 | プロット | `simulator/utils/plotter.py` |
 | 比較実験スクリプト | `simulator/experiments/compare_homogeneous.py` |
 | 動作確認スクリプト | `simulator/main.py` |
-| テスト: 環境 | `tests/test_env.py` |
+| テスト: 環境 | `tests/envs/test_env.py` |
 | テスト: Huang 2022 | `tests/algorithms/homogeneous/huang2022/` |
 | テスト: Izumi 2026 | `tests/algorithms/homogeneous/izumi2026/` |
+
+### Heterogeneous
+
+| 実装内容 | ソースパス |
+|---------|-----------|
+| 環境（Heterogeneous env） | `simulator/envs/heterogeneous_mpmab.py` |
+| 実行ランナー | `simulator/algorithms/heterogeneous/shi2021/runner_hetero.py` |
+| Orthogonalization + Rank Assignment（Wang 2020） | `simulator/algorithms/heterogeneous/shi2021/wang2020_orthogonalization.py` |
+| BEACON Send/Receive（forced collision 通信） | `simulator/algorithms/heterogeneous/shi2021/shi2021_beacon_communication.py` |
+| BEACON エポックループ | `simulator/algorithms/heterogeneous/shi2021/shi2021_beacon_epoch.py` |
+| Matching Oracle（Hungarian 法） | `simulator/algorithms/heterogeneous/shi2021/oracle.py` |
+| Shi 2021 BEACON メインクラス | `simulator/algorithms/heterogeneous/shi2021/algorithm.py` |
+| ParallelBEACON エポックループ | `simulator/algorithms/heterogeneous/izumi2026/parallel_beacon_epoch.py` |
+| Izumi 2026 ParallelBEACON メインクラス | `simulator/algorithms/heterogeneous/izumi2026/algorithm.py` |
+| 評価指標（Heterogeneous） | `simulator/utils/metrics.py` — `compute_hetero_metrics` |
+| 比較実験スクリプト | `simulator/experiments/compare_heterogeneous.py` |
+| テスト: 環境・初期化・BEACON | `tests/algorithms/heterogeneous/shi2021/` |
+| テスト: ParallelBEACON | `tests/algorithms/heterogeneous/izumi2026/` |
 
 ---
 
@@ -122,30 +142,67 @@ tau_comm = ceil(ln(1/δ) / μ̃)        # VNP・HDE 用
 
 ---
 
+## Heterogeneous の簡略化した箇所
+
+### ParallelBEACON の通信実装
+
+**内容:** Heterogeneous 版（Izumi 2026 ParallelBEACON）では、アップリンク・ダウンリンクの統計集約を直接行い、forced collision bit 伝送を再現しない。
+
+**実際の実装:**
+- follower → sub-leader → grand leader の統計は Python 辞書で直接集約する。
+- 通信時間コストは BEACON と同じ式（`Q * Ka ステップ`）のダミー `runner.step()` で消費する。
+- ダウンリンク（割当通知）は `ceil(log2(K))` ビット相当の dummy ステップで近似する。
+
+**影響:**
+- regret に通信コストが近似的に反映される点は BEACON（Shi 2021）と同じ。
+- 通信誤りはシミュレートされない。
+
+### BEACON（Shi 2021）の通信実装
+
+**内容:** BEACON の `Send` / `Receive` は 1 bit = 1 ステップで実際に forced collision をシミュレートする（`shi2021_beacon_communication.py`）。報酬推定値の量子化（EncoderSendFloat / DecoderReceiveFloat）は実装済み。
+
+---
+
 ## 比較実験の実行
+
+### Homogeneous
 
 ```bash
 # 小規模 sanity check（K=5, M=2, T=50000）
-python simulator/experiments/compare_homogeneous.py --experiment small --trials 20
+python -m simulator.experiments.compare_homogeneous --experiment small --trials 20
 
 # multi-channel speedup 確認（K=10, M=5）
-python simulator/experiments/compare_homogeneous.py --experiment speedup --trials 50
+python -m simulator.experiments.compare_homogeneous --experiment speedup --trials 50
 
 # good arm 探索コストとの tradeoff（K=20, M=5）
-python simulator/experiments/compare_homogeneous.py --experiment tradeoff --trials 50
+python -m simulator.experiments.compare_homogeneous --experiment tradeoff --trials 50
 ```
 
-主なオプション:
+### Heterogeneous
+
+```bash
+# BEACON vs ParallelBEACON（K=5, M=2, T=500000）
+python -m simulator.experiments.compare_heterogeneous --experiment small --trials 10
+
+# 非対称な報酬行列（K=6, M=3）
+python -m simulator.experiments.compare_heterogeneous --experiment asym --trials 20
+
+# ParallelBEACON のみ（高速デバッグ）
+python -m simulator.experiments.compare_heterogeneous \
+    --experiment small --trials 2 --horizon 50000 --no-plots --no-beacon
+```
+
+主なオプション（詳細は `20260522_experiment_guide.md` 参照）:
 
 | Option | 内容 |
 |--------|------|
 | `--trials N` | trial 数 |
 | `--horizon T` | horizon |
 | `--K K --M M` | arm 数・player 数 |
-| `--n-values 1,2,3` | Izumi 2026 の n の値 |
-| `--means 0.9,0.8,...` | arm 平均報酬を直接指定 |
-| `--ci 0.95` | regret curve の信頼区間 |
+| `--n-values 1,2` | ParallelBEACON の n の値 |
+| `--means-matrix JSON` | 報酬行列を JSON で直接指定 |
 | `--retry-on-failure` | 割当失敗 trial を seed を変えて再実行 |
 | `--no-plots` | CSV のみ出力 |
+| `--no-beacon` | BEACON を省略し ParallelBEACON のみ実行 |
 
-出力は `runs/YYYYMMDD_HHMMSS_<experiment>/` 以下に summary.csv, curves.csv, PNG を保存する（`runs/` は .gitignore 済み）。
+出力は `outputs/runs/YYYYMMDD_HHMMSS_<experiment>/` 以下に保存（`.gitignore` 済み）。

@@ -17,7 +17,7 @@
 ### 実装メモ
 
 - [implementation_notes.md](implementation_notes.md)
-  - Homogeneous 版（Huang 2022 / Izumi 2026）の実装概要、ソースパス対応、簡略化箇所、比較実験コマンド。
+  - 全 4 モデル（Homogeneous / Heterogeneous）の実装概要、ソースパス対応、簡略化箇所、比較実験コマンド。
 
 - [20260511_fallback_inventory.md](20260511_fallback_inventory.md)
   - 論文手順から外れる安全装置 fallback の所在と方針。
@@ -51,6 +51,11 @@
 - [Wang 2020 Orthogonalization](pseudocode/20260510_wang2020_orthogonalization_pseudocode.md)
   - collision-sensing initialization と DPE。
   - orthogonalization, rank assignment, exploration-exploitation phase など。
+
+### 実験ガイド（更新済み）
+
+- [20260522_experiment_guide.md](20260522_experiment_guide.md)
+  - Homogeneous / Heterogeneous 両方の実験コマンド・プリセット・CLI オプション・出力 CSV 列定義・テスト実行方法。
 
 ## 推奨の読み方
 

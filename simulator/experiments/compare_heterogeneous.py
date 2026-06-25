@@ -14,65 +14,22 @@
 from __future__ import annotations
 
 import argparse
-import json
-import math
 from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
 
-from simulator.experiments.io import create_run_dir
-from simulator.experiments.run_heterogeneous import (
-    HETERO_CONFIGS,
-    HeteroExperimentConfig,
-    build_curve_rows,
-    run_hetero_with_optional_retry,
+from simulator.experiments.configs import HETERO_CONFIGS, build_hetero_config
+from simulator.experiments.io import (
+    HETERO_SUMMARY_COLS,
+    create_run_dir,
+    print_summary,
+    save_run_config,
 )
+from simulator.experiments.run_heterogeneous import run_hetero_with_optional_retry
 from simulator.utils import save_metric_bar, save_regret_curve
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _print_hetero_summary(summary_df: pd.DataFrame) -> None:
-    """CLI 用の短い集計を表示する（Heterogeneous 版）。"""
-    cols = [
-        "cumulative_regret",
-        "init_duration",
-        "beacon_comm_duration",
-        "beacon_explore_duration",
-        "collision_count",
-        "final_assignment_success",
-    ]
-    # 存在する列だけ選択する
-    available = [c for c in cols if c in summary_df.columns]
-    grouped = summary_df.groupby(["algorithm", "n"], as_index=False)[available].mean()
-    print(grouped.to_string(index=False))
-
-
-def _save_hetero_run_config(
-    run_dir: Path,
-    config: HeteroExperimentConfig,
-    args: argparse.Namespace,
-) -> None:
-    """Heterogeneous 実験の再実行設定を JSON として保存する。"""
-    payload = {
-        "config": {
-            "name": config.name,
-            "K": config.K,
-            "M": config.M,
-            "T": config.T,
-            "delta": config.delta,
-            "means_matrix": config.means_matrix,
-            "n_values": config.n_values,
-            "trials": config.trials,
-            "seed_base": config.seed_base,
-        },
-        "args": vars(args),
-    }
-    (run_dir / "run_config.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -108,13 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--K",
         type=int,
         default=None,
-        help="腕数 K を上書き（means_matrix も --means-matrix で合わせること）。",
+        help="腕数 K を上書き（--means-matrix も必須）。",
     )
     parser.add_argument(
         "--M",
         type=int,
         default=None,
-        help="プレイヤー数 M を上書き（means_matrix も --means-matrix で合わせること）。",
+        help="プレイヤー数 M を上書き（--means-matrix も必須）。",
     )
     parser.add_argument(
         "--n-values",
@@ -176,66 +133,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def build_hetero_config(args: argparse.Namespace) -> HeteroExperimentConfig:
-    """CLI 引数で preset を上書きした HeteroExperimentConfig を作る。"""
-    base = HETERO_CONFIGS[args.experiment]
-
-    K = args.K or base.K
-    M = args.M or base.M
-    T = args.horizon or base.T
-
-    # means_matrix 上書き
-    if args.means_matrix:
-        means_matrix = json.loads(args.means_matrix)
-        if len(means_matrix) != M:
-            raise ValueError(
-                f"means_matrix の行数 ({len(means_matrix)}) が M ({M}) と一致しない。"
-            )
-        for row in means_matrix:
-            if len(row) != K:
-                raise ValueError(
-                    f"means_matrix の各行の長さ ({len(row)}) が K ({K}) と一致しない。"
-                )
-    else:
-        means_matrix = base.means_matrix
-
-    if M >= K:
-        raise ValueError(f"M < K が必要。M={M}, K={K}")
-
-    # n_values 検証: BEACON は K >= M+1 を必要とする
-    if K < M + 1:
-        raise ValueError(
-            f"BEACON は K >= M+1 を必要とする。K={K}, M={M}"
-        )
-
-    if args.n_values:
-        n_values = [int(x) for x in args.n_values.split(",") if x.strip()]
-    else:
-        n_values = list(base.n_values)
-
-    # Izumi 2026 の制約: 1 <= n < K - M
-    max_n = K - M - 1
-    n_values = [n for n in n_values if 1 <= n <= max_n]
-    if not n_values:
-        raise ValueError(
-            f"有効な n がない。ParallelBEACON では 1 <= n < K-M が必要。K-M={K - M}"
-        )
-
-    suffix = args.name_suffix or f"K{K}_M{M}_T{T}"
-    name = f"{base.name}_{suffix}" if suffix else base.name
-
-    return HeteroExperimentConfig(
-        name=name,
-        K=K,
-        M=M,
-        T=T,
-        means_matrix=means_matrix,
-        n_values=n_values,
-        trials=args.trials or base.trials,
-        seed_base=base.seed_base,
-    )
-
-
 def main() -> None:
     args = build_parser().parse_args()
     if args.max_attempts < 1:
@@ -292,7 +189,7 @@ def main() -> None:
     curves_path = run_dir / "curves.csv"
     summary_df.to_csv(summary_path, index=False)
     curve_df.to_csv(curves_path, index=False)
-    _save_hetero_run_config(run_dir, config, args)
+    save_run_config(run_dir, config, args)
 
     if not args.no_plots:
         save_regret_curve(
@@ -337,7 +234,7 @@ def main() -> None:
     print(f"curves:  {curves_path}")
     if not args.no_plots:
         print(f"figures: {run_dir}")
-    _print_hetero_summary(summary_df)
+    print_summary(summary_df, HETERO_SUMMARY_COLS)
 
 
 if __name__ == "__main__":

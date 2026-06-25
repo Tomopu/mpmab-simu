@@ -40,9 +40,13 @@
   - Homogeneous MPMAB without collision sensing。
   - `FindGoodArm`, `VirtualMusicalChairs`, `VirtualNumberPlayers`, `DistributedExploration` など。
 
-- [Izumi 2026](pseudocode/20260510_izumi2026_pseudocode.md)
+- [Izumi 2026 (Homogeneous)](pseudocode/20260510_izumi2026_homogeneous_pseudocode.md)
   - Homogeneous multi-channel MPMAB。
   - `FindMultipleGoodArms`, `ParallelVirtualMusicalChairs`, `ParallelVirtualNumberPlayers`, `HierarchicalDistributedExploration` など。
+
+- [Izumi 2026 (Heterogeneous)](pseudocode/20260626_izumi2026_heterogeneous_pseudocode.md)
+  - Heterogeneous multi-channel MPMAB with collision sensing。
+  - `SelectCollisionSensingChannels`, `CollisionSensingParallelVirtualMusicalChairs`, `CollisionSensingParallelVirtualNumberPlayers`, `ParallelBEACON` など。
 
 - [Shi 2021 BEACON](pseudocode/20260510_shi2021_beacon_pseudocode.md)
   - Heterogeneous MPMAB。
@@ -63,6 +67,6 @@
 
 1. [実装計画](20260510_implementation_and_experiments.md)
 2. [Huang 2022 擬似コード](pseudocode/20260510_huang2022_pseudocode.md)
-3. [Izumi 2026 擬似コード](pseudocode/20260510_izumi2026_pseudocode.md)
+3. [Izumi 2026 擬似コード (Homogeneous)](pseudocode/20260510_izumi2026_homogeneous_pseudocode.md)
 
 heterogeneous 版に進むときは、Shi 2021 と Wang 2020 の擬似コードを追加で参照する。

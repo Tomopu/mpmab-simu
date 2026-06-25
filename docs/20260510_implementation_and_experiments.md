@@ -29,7 +29,7 @@
 Claude Code に PDF を読ませず、以下の Markdown を実装仕様として参照させる。
 
 - `docs/pseudocode/20260510_huang2022_pseudocode.md`
-- `docs/pseudocode/20260510_izumi2026_pseudocode.md`
+- `docs/pseudocode/20260510_izumi2026_homogeneous_pseudocode.md`
 - `docs/pseudocode/20260510_shi2021_beacon_pseudocode.md`
 - `docs/pseudocode/20260510_wang2020_orthogonalization_pseudocode.md`
 

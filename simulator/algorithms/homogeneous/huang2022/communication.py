@@ -8,7 +8,7 @@ from simulator.core.runner import Runner
 
 
 class Huang2022CommunicationMixin:
-    """Simplified communication helpers used by DistributedExploration."""
+    """DistributedExploration で使う簡略化通信ヘルパー。"""
 
     def _consume_comm_steps(self, runner: Runner, n_steps: int, dummy_arm: int) -> None:
         """

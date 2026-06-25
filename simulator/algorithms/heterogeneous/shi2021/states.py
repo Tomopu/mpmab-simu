@@ -1,4 +1,4 @@
-"""Player state dataclasses for BEACON (Shi 2021)."""
+"""BEACON (Shi 2021) で使うプレイヤー状態の dataclass。"""
 
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
-"""Collision-sensing initialization for heterogeneous ParallelBEACON.
+"""heterogeneous ParallelBEACON の collision-sensing 初期化。
 
-The original Izumi 2026 initialization is for no-sensing players. It repeats
-pulls on positive-reward "good" arms so a zero reward is unlikely to be caused
-by Bernoulli noise rather than collision. In the heterogeneous collision-sensing
-model, players observe collision flags directly, so those repeated tests can be
-replaced by single collision observations.
+元の Izumi 2026 初期化は no-sensing プレイヤーを対象にしている。
+ゼロ報酬が Bernoulli ノイズではなく衝突に由来することを高確率にするため、
+正報酬を持つ good arm を繰り返し引く。heterogeneous collision-sensing
+モデルではプレイヤーが衝突フラグを直接観測できるため、これらの反復判定は
+1 回の衝突観測で置き換えられる。
 """
 
 from __future__ import annotations
@@ -17,16 +17,16 @@ from simulator.algorithms.heterogeneous.shi2021.runner_hetero import Heterogeneo
 
 
 class Izumi2026CollisionSensingInitializationMixin:
-    """Collision-sensing variants of the ParallelBEACON initialization phases."""
+    """ParallelBEACON 初期化フェーズの collision-sensing 版。"""
 
     def select_collision_sensing_channels(self, runner: HeterogeneousRunner) -> Tuple[List[int], dict[int, float]]:
         """
-        Select n communication channels.
+        n 本の通信チャネルを選択する。
 
-        No-sensing Izumi 2026 first finds arms with a positive reward lower
-        bound because communication relies on distinguishing collision from
-        stochastic zero rewards. With collision sensing, any arm can carry a
-        collision bit, so this phase has no sampling cost.
+        no-sensing 版の Izumi 2026 では、通信時に衝突と確率的なゼロ報酬を
+        区別する必要があるため、まず正の報酬下界を持つ腕を探す。
+        collision-sensing 設定では任意の腕で衝突ビットを伝送できるため、
+        このフェーズにサンプリングコストはかからない。
         """
         runner.set_phase("select_collision_sensing_channels")
         channels = list(range(self.n))
@@ -38,11 +38,11 @@ class Izumi2026CollisionSensingInitializationMixin:
         good_arms: List[int],
     ) -> List[int]:
         """
-        ParallelVirtualMusicalChairs with direct collision observations.
+        直接観測した衝突フラグを使う ParallelVirtualMusicalChairs。
 
-        The no-sensing version waits for a positive reward to infer that a
-        sampled good arm was collision-free. Here, a player fixes its external
-        rank as soon as it pulls a channel arm and observes no collision.
+        no-sensing 版では、サンプルした good arm が衝突していないことを
+        正報酬の観測から推定する。ここでは、プレイヤーがチャネル腕を引いて
+        衝突なしを観測した時点で external rank を確定する。
         """
         runner.set_phase("parallel_virtual_musical_chairs_collision_sensing")
         K = self.K
@@ -62,8 +62,8 @@ class Izumi2026CollisionSensingInitializationMixin:
         # total_steps = ceil(K * tau_rank_cs / n) → ブロック数 ≈ tau_rank_cs / n
         # 1 ブロックで n チャネル並列 × 1 試行 = n 回のスロット試行が行われるため、
         # 合計スロット試行 = (tau_rank_cs / n ブロック) × n = tau_rank_cs 回となる。
-        # 複数 player が同じ virtual slot を選んで衝突した場合、次のブロックで別スロットを
-        # 再試行する機会が必要。1 ブロックだけでは未確定 player が残り、0 へのフォールバックで
+        # 複数プレイヤーが同じ virtual slot を選んで衝突した場合、次のブロックで別スロットを
+        # 再試行する機会が必要。1 ブロックだけでは未確定プレイヤーが残り、0 へのフォールバックで
         # rank 重複・M_hat 推定誤りが生じる。
         tau_rank_cs = max(1, _ceil(_ln(1.0 / delta)))
         total_steps = max(1, _ceil(K * tau_rank_cs / max(1, n)))
@@ -116,11 +116,11 @@ class Izumi2026CollisionSensingInitializationMixin:
         s_list: List[int],
     ) -> Tuple[List[int], List[int]]:
         """
-        ParallelVirtualNumberPlayers with direct collision observations.
+        直接観測した衝突フラグを使う ParallelVirtualNumberPlayers。
 
-        The no-sensing version repeats each virtual-time test tau times and
-        treats an all-zero reward block as a collision event. Here each test is
-        a single pull and the observed collision flag is used directly.
+        no-sensing 版では、各仮想時刻のテストを tau 回繰り返し、
+        報酬が全て 0 のブロックを衝突イベントとして扱う。
+        ここでは各テストを 1 回だけ実行し、観測した衝突フラグを直接使う。
         """
         runner.set_phase("parallel_virtual_number_players_collision_sensing")
         K = self.K

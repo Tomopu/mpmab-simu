@@ -1,4 +1,4 @@
-"""HomogeneousMultiChannelIzumi2026 package."""
+"""HomogeneousMultiChannelIzumi2026 パッケージ。"""
 
 from simulator.algorithms.homogeneous.izumi2026.algorithm import HomogeneousMultiChannelIzumi2026
 

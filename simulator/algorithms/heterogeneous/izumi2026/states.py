@@ -1,4 +1,4 @@
-"""Player state dataclass for ParallelBEACON (Izumi 2026 Heterogeneous)."""
+"""ParallelBEACON (Izumi 2026 Heterogeneous) で使うプレイヤー状態の dataclass。"""
 
 from __future__ import annotations
 

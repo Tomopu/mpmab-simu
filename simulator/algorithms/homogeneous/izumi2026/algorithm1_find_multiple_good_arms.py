@@ -8,7 +8,7 @@ from simulator.core.runner import Runner
 
 
 class Izumi2026FindMultipleGoodArmsMixin:
-    """Algorithm 1: FindMultipleGoodArms."""
+    """Algorithm 1: FindMultipleGoodArms の処理を提供する補助クラス。"""
 
     def find_multiple_good_arms(self, runner: Runner) -> Tuple[List[int], Dict[int, float]]:
         """
@@ -63,7 +63,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
             # active_arms の値 -> active_arms 内の位置（0-based）の逆引き
             arm_to_idx = {a: i for i, a in enumerate(active_arms)}
 
-            # ---- sub-phase 1: 一様ランダム探索 ----
+            # ---- サブフェーズ 1: 一様ランダム探索 ----
             # 論文: T1 = 6|K|*2^p*ceil(ln(2n/delta))
             T1 = 6 * Ka * (2**p) * _ceil(_ln(2.0 * n / delta))
             for _ in range(T1):
@@ -76,7 +76,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
                         # 確定済み: 最初の good arm をダミーとして使う
                         actions.append(G_list[m][0])
                 result = runner.step(actions)
-                # no-sensing: rewards のみ記録。collision フラグは使わない。
+                # no-sensing 設定: 報酬のみ記録し、衝突フラグは使わない。
                 for m in range(M):
                     if len(G_list[m]) < n:
                         a = actions[m]
@@ -85,7 +85,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
                             R[m][idx] += result.rewards[m]
                             N[m][idx] += 1
 
-            # ---- sub-phase 2: 各腕を昇順で確認フェーズ ----
+            # ---- サブフェーズ 2: 各腕を昇順で確認フェーズ ----
             # 論文: for ell in K ascending order → 実装: ell_idx=0..Ka-1 (active_arms 内の位置)
             T2 = Ka * (2**p) * _ceil(_ln(2.0 * n / delta))
             thr = 2.0 ** (1 - p)  # accept 閾値 2^{1-p}
@@ -105,7 +105,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
                                 # accept: active_arms から一様ランダムに選ぶ
                                 a = self._player_rngs[m].choice(active_arms)
                             else:
-                                # reject: arm ell を単体で選ぶ
+                            # reject: 腕 ell を単体で選ぶ
                                 a = ell
                             actions.append(a)
                         else:
@@ -119,7 +119,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
                                 idx = arm_to_idx[a]
                                 Rprime[m][idx] += result.rewards[m]
 
-                # accept された arm のみ G に追加する（TeX: check は accept branch 内にしかない）
+                # accept された腕だけを G に追加する（TeX: check は accept 分岐内にしかない）
                 for m in range(M):
                     if len(G_list[m]) < n and accept[m] and Rprime[m][ell_idx] >= 1:
                         G_list[m].append(ell)
@@ -131,7 +131,7 @@ class Izumi2026FindMultipleGoodArmsMixin:
 
             # フェーズ終了: player 0 の G を基準に active_arms を更新する
             # 同期設計上、全プレイヤーが同じ good arms を確定するはずであり、
-            # player 0 の G をシミュレーションの canonical G として使う。
+            # player 0 の G をシミュレーション上の代表 G として使う。
             confirmed_p0 = set(G_list[0])
             active_arms = [a for a in active_arms if a not in confirmed_p0]
 

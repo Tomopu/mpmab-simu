@@ -73,7 +73,7 @@ class ParallelBeaconExploreState:
         self.good_arms = good_arms  # G = [k_tilde_1, ..., k_tilde_n] (0-based)
         self.rank_list = rank_list
 
-        # グループマッピング: group_map[g] = list of player indices (1-based g=1..n)
+        # グループマッピング: group_map[g] = プレイヤー index のリスト (1-based g=1..n)
         self.group_map: Dict[int, List[int]] = _build_group_map(rank_list, n)
 
         # grand leader は rank==1 のプレイヤー
@@ -91,7 +91,7 @@ class ParallelBeaconExploreState:
 
 class ParallelBeaconEpochMixin:
     """
-    ParallelBEACON の初期サンプリングとエポックループを実行する mixin。
+    ParallelBEACON の初期サンプリングとエポックループを実行する補助クラス。
     """
 
     def parallel_beacon_initial_sampling(
@@ -181,7 +181,7 @@ class ParallelBeaconEpochMixin:
         rank_list = state.rank_list
         grand_leader = state.grand_leader_pid
 
-        # good_set: 通信チャネルに使う arm 集合（探索では sequential hopping に含む）
+        # good_set: 通信チャネルに使う arm 集合（探索では sequential hopping に含める）
         # ダミー腕: good_arms 以外の arm（通信コスト消費用）
         good_set = set(good_arms)
         non_good = [a for a in range(K) if a not in good_set]
@@ -305,7 +305,7 @@ class ParallelBeaconEpochMixin:
                     state.R[k_a][m] += result.rewards[m]
                     state.samples[k_a][m].append(result.rewards[m])
 
-        # HorizonReachedHetero が来てここには到達しない
+        # HorizonReachedHetero が来るため、ここには到達しない
         return state.last_assigned_arms  # type: ignore[return-value]
 
 
@@ -313,7 +313,7 @@ class ParallelBeaconEpochMixin:
 
 def _build_group_map(rank_list: List[int], n: int) -> Dict[int, List[int]]:
     """
-    rank_list から group_map[g] = list of player indices を構築する。
+    rank_list から group_map[g] = プレイヤー index のリストを構築する。
 
     グループ割当:
         j=1: grand leader → group 1
@@ -346,7 +346,7 @@ def _player_group(rank: int, n: int) -> int:
         n: good arm の数
 
     Returns:
-        1-based group id
+        1-based の group id
     """
     if rank <= n:
         return rank

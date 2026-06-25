@@ -73,7 +73,7 @@ class BeaconExploreState:
 
 class BeaconEpochMixin(BeaconCommunicationMixin):
     """
-    BEACON の初期化サンプリングとエポックループを実行する mixin。
+    BEACON の初期化サンプリングとエポックループを実行する補助クラス。
     """
 
     def beacon_initial_sampling(
@@ -107,7 +107,7 @@ class BeaconEpochMixin(BeaconCommunicationMixin):
 
         T = [[0] * M for _ in range(K)]
         R = [[0.0] * M for _ in range(K)]
-        # samples[k][m]: arm k の player m によるサンプル列
+        # samples[k][m]: arm k のプレイヤー m によるサンプル列
         samples: List[List[List[float]]] = [[[] for _ in range(M)] for _ in range(K)]
 
         leader_pid = next((m for m in range(M) if rank_list[m] == 1), 0)
@@ -290,7 +290,7 @@ class BeaconEpochMixin(BeaconCommunicationMixin):
 
             prev_p = [row[:] for row in curr_p]
 
-        # horizon に達した時点で HorizonReachedHetero が伝播するためここには到達しない
+        # horizon に達した時点で HorizonReachedHetero が伝播するため、ここには到達しない
         return es.last_assigned_arms  # type: ignore[return-value]
 
 

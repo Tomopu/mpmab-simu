@@ -1,4 +1,4 @@
-"""Player state dataclasses for homogeneous algorithms."""
+"""homogeneous アルゴリズムで使うプレイヤー状態の dataclass。"""
 
 from __future__ import annotations
 
@@ -48,4 +48,3 @@ class PlayerStateIzumi:
     good_arms: List[int]
     mu_tilde_min: float
     assigned_arm: int
-

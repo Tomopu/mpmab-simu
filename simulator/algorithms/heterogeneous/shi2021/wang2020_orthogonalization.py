@@ -2,7 +2,7 @@
 Wang 2020 Orthogonalization と Rank Assignment。
 
 BEACON の初期化フェーズとして使う。
-collision sensing を利用してプレイヤーごとに一意な state を割り当て、
+collision-sensing 設定を利用してプレイヤーごとに一意な state を割り当て、
 そこから rank と M_hat を推定する。
 
 論文との対応:
@@ -27,7 +27,7 @@ class Wang2020OrthogonalizationMixin:
     """
     Wang et al. (2020) の orthogonalization procedure と rank assignment。
 
-    BEACON の初期化に使うため HeterogeneousShiBeacon2021 に mixin する。
+    BEACON の初期化で使うため HeterogeneousShiBeacon2021 に継承させる。
     """
 
     def orthogonalization(
@@ -50,11 +50,11 @@ class Wang2020OrthogonalizationMixin:
             ラウンド 0 (選択ラウンド):
                 未確定プレイヤー → ランダムに state 候補を選んで引く
                 確定済みプレイヤー → 自分の state arm を引く
-                collision がなければ候補を state として確定
+                衝突がなければ候補を state として確定
             ラウンド 1..K (broadcast ラウンド, q=0..K-1, 0-based):
                 未確定プレイヤー → broadcast arm (K-1) を引く
-                確定済みプレイヤー → q == state なら broadcast arm を引く、else 自分の state arm
-                全 K ラウンドで collision がなければ全員確定 → 終了
+                確定済みプレイヤー → q == state なら broadcast arm を引き、それ以外は自分の state arm
+                全 K ラウンドで衝突がなければ全員確定 → 終了
 
         Args:
             runner: HeterogeneousRunner
@@ -74,7 +74,7 @@ class Wang2020OrthogonalizationMixin:
         broadcast_arm = K - 1
         num_states = K - 1  # 使える state の数 = K-1
 
-        state_list = [-1] * M  # -1 = unsettled
+        state_list = [-1] * M  # -1 = 未確定
 
         block = 0
         while True:
@@ -97,7 +97,7 @@ class Wang2020OrthogonalizationMixin:
 
             result = runner.step(actions)
 
-            # collision がなければ state を確定
+            # 衝突がなければ state を確定
             for m in range(M):
                 if state_list[m] == -1 and not result.collisions[m]:
                     state_list[m] = candidates[m]
@@ -122,7 +122,7 @@ class Wang2020OrthogonalizationMixin:
                 if any(result.collisions):
                     any_collision_in_broadcast = True
 
-            # broadcast ラウンドで collision がなければ全員確定 → 終了
+            # broadcast ラウンドで衝突がなければ全員確定 → 終了
             if not any_collision_in_broadcast:
                 break
 
@@ -140,7 +140,7 @@ class Wang2020OrthogonalizationMixin:
 
         論文の変数対応:
             state (0-based) {0,...,K-2}
-            block k (0-based) {0,...,K-2} ← 論文 1-based {1,...,K-1}
+            ブロック k (0-based) {0,...,K-2} ← 論文 1-based {1,...,K-1}
             round q (0-based) {0,...,K-2}
 
         各ブロック k の構造（K-1 ラウンド）:
@@ -190,24 +190,24 @@ class Wang2020OrthogonalizationMixin:
 
                 result = runner.step(actions)
 
-                # state==k のプレイヤーが arm q を引いて collision があった
-                # → arm q を持つ別プレイヤー（state==q）は collision を観測
+                # state==k のプレイヤーが arm q を引いて衝突があった
+                # → arm q を持つ別プレイヤー（state==q）は衝突を観測
                 for m in range(M):
                     if state_list[m] != k and result.collisions[m]:
                         collision_seen_by_others[m] = True
 
-            # block k で collision を観測した → state k が存在する
-            # state==k のプレイヤーは他との collision を観測
-            # （block k で state k が自分のアナウンスで collision を見たかどうか）
+            # ブロック k で衝突を観測した → state k が存在する
+            # state==k のプレイヤーは他との衝突を観測
+            # （ブロック k で state k が自分のアナウンスで衝突を見たかどうか）
             collision_from_k = [False] * M
-            # block k で state==k のプレイヤーが collision を観測した場合も M_hat に含める
-            # 簡略化: state k のプレイヤーが arm q を引いて collision → state q も存在
-            # ここでは block ごとに collision_seen_by_others を使って M_hat を更新
-            # state==k のプレイヤー自身には "block k での collision = 他 state k との衝突"
+            # ブロック k で state==k のプレイヤーが衝突を観測した場合も M_hat に含める
+            # 簡略化: state k のプレイヤーが arm q を引いて衝突 → state q も存在
+            # ここではブロックごとに collision_seen_by_others を使って M_hat を更新
+            # state==k のプレイヤー自身には「ブロック k での衝突 = 他 state k との衝突」
             # orthogonalization 後は一意なので state==k は最大 1 人
 
             # M_hat と rank の更新
-            # block k で collision を観測した全プレイヤーに「state k は存在する」と通知
+            # ブロック k で衝突を観測した全プレイヤーに「state k は存在する」と通知
             for m in range(M):
                 if collision_seen_by_others[m]:
                     M_hat[m] += 1

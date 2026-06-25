@@ -8,7 +8,7 @@ from simulator.core.runner import Runner
 
 
 class Huang2022FindGoodArmMixin:
-    """Algorithm 1: FindGoodArm."""
+    """Algorithm 1: FindGoodArm の処理を提供する補助クラス。"""
 
     def find_good_arm(self, runner: Runner) -> Tuple[int, float]:
         """
@@ -49,19 +49,19 @@ class Huang2022FindGoodArmMixin:
             R = [[0] * K for _ in range(M)]
             N = [[0] * K for _ in range(M)]
 
-            # ---- sub-phase 1: 各腕を一様ランダムに探索 ----
+            # ---- サブフェーズ 1: 各腕を一様ランダムに探索 ----
             # 論文: for t = 1,..., 6K * 2^p * ceil(ln(2/delta))
             T1 = 6 * K * (2**p) * _ceil(_ln(2.0 / delta))
             for _ in range(T1):
                 actions = [self._player_rngs[m].randrange(K) for m in range(M)]
                 result = runner.step(actions)
-                # no-sensing: rewards のみ記録。collision フラグは使わない。
+                # no-sensing 設定: 報酬のみ記録し、衝突フラグは使わない。
                 for m in range(M):
                     a = actions[m]
                     R[m][a] += result.rewards[m]
                     N[m][a] += 1
 
-            # ---- sub-phase 2: 各腕 ell を確認フェーズで accept/reject ----
+            # ---- サブフェーズ 2: 各腕 ell を確認フェーズで accept/reject ----
             # 論文: for ell = 1,...,K (1-based) → 実装: ell=0..K-1 (0-based)
             T2 = (2**p) * K * _ceil(_ln(2.0 / delta))
             for ell in range(K):
@@ -86,7 +86,7 @@ class Huang2022FindGoodArmMixin:
                         a = actions[m]
                         Rprime[m][a] += result.rewards[m]
 
-                # accept された arm のみ confirm する（TeX: check は accept branch 内にしかない）
+                # accept された腕だけを確定する（TeX: check は accept 分岐内にしかない）
                 for m in range(M):
                     if k_tilde_list[m] == -1 and accept[m] and Rprime[m][ell] >= 1:
                         k_tilde_list[m] = ell

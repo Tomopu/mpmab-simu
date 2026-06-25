@@ -7,7 +7,7 @@ from simulator.core.runner import Runner
 
 
 class Izumi2026ParallelVirtualMusicalChairsMixin:
-    """Algorithm 2: ParallelVirtualMusicalChairs."""
+    """Algorithm 2: ParallelVirtualMusicalChairs の処理を提供する補助クラス。"""
 
     def parallel_virtual_musical_chairs(self, runner: Runner, good_arms: List[int], tau: int) -> List[int]:
         """
@@ -81,7 +81,7 @@ class Izumi2026ParallelVirtualMusicalChairsMixin:
                             # 割り当てられることを防ぐための禁止リストを更新する。
                             forbidden_set = {(l[m][j0] + (i0 + 1 - j0)) % K for j0 in range(i0 + 1)}
                     else:
-                        # 確定済み: 全スロットを rank s に揃える（"wait at rank s" 状態）
+                        # 確定済み: 全スロットを rank s に揃える（rank s で待機する状態）
                         for i0 in range(n):
                             l[m][i0] = s_list[m]
 
@@ -111,14 +111,14 @@ class Izumi2026ParallelVirtualMusicalChairsMixin:
                 i0 = pulled_i0_per_player[m]
                 if i0 >= 0:
                     if result.rewards[m] > 0 and s_list[m] == -1:
-                        # collision なし（no-sensing: reward > 0 で判断）
+                        # 衝突なし（no-sensing 設定では reward > 0 で判断）
                         s_list[m] = l[m][i0]
                         # 論文 Algorithm 2:
                         #   s <- ell_i
                         #   ell_j <- s for all j in {1,...,n}
                         # rank 確定後ただちに全 good arm の仮想スロットを s に揃える。
                         # これにより、同じ virtual rank s は全 channel 上で占有され、
-                        # 他 player が同じ s に座ることを防ぐ。
+                        # 他プレイヤーが同じ s に座ることを防ぐ。
                         for j0 in range(n):
                             l[m][j0] = s_list[m]
 

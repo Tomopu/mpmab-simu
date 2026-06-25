@@ -23,7 +23,7 @@ class HeterogeneousRunner:
     """
     Heterogeneous 環境との同期インターフェースと Trace への記録を担うクラス。
 
-    BEACON などの collision sensing アルゴリズムは、returned result の
+    BEACON などの collision-sensing アルゴリズムは、戻り値の
     collisions フィールドを意思決定に使ってよい（collision_sensing=True の場合）。
 
     Args:

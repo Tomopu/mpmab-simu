@@ -1,4 +1,4 @@
-"""Result builder for ParallelBEACON (Izumi 2026 Heterogeneous)."""
+"""ParallelBEACON (Izumi 2026 Heterogeneous) の実行結果を構築するヘルパー。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Izumi et al. (2026) ParallelBEACON for Heterogeneous Multi-Channel MPMAB."""
+"""heterogeneous multi-channel MPMAB 向けの Izumi et al. (2026) ParallelBEACON。"""
 
 from simulator.algorithms.heterogeneous.izumi2026.algorithm import (
     HeterogeneousMultiChannelIzumi2026,

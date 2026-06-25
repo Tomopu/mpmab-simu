@@ -11,9 +11,9 @@ forced collision によるビット伝送を 1 ステップ=1 ビットで実際
     bit=1 を player i から player j へ送る:
         player i は arm c_j (= j の state arm) を引く → player j が c_j を引くと collision
     bit=0 を player i から player j へ送る:
-        player i は arm c_i (= i の state arm) を引く → player j が c_j を引いても no collision
+        player i は arm c_i (= i の state arm) を引く → player j が c_j を引いても衝突なし
     受信側 player j は常に c_j を引き、collision なら 1、なければ 0 と解釈する。
-    通信に参加しない他プレイヤーは自分の通信 arm c_m を引く（passive）。
+    通信に参加しない他プレイヤーは自分の通信 arm c_m を引く（受動的に待機）。
 
 論文アルゴリズムとの対応:
     BEACON: Leader   Line 8-9:   Receive(delta_tilde, m)
@@ -33,7 +33,7 @@ from simulator.algorithms.heterogeneous.shi2021.runner_hetero import Heterogeneo
 
 class BeaconCommunicationMixin:
     """
-    BEACON の Send/Receive を同期シミュレーションとして実行する mixin。
+    BEACON の Send/Receive を同期シミュレーションとして実行する補助クラス。
 
     state_list[m] が通信 arm c_m として使われる。
     """
@@ -51,8 +51,8 @@ class BeaconCommunicationMixin:
 
         各ビットにつき 1 ステップ消費する。
         - bit=1: sender が c_receiver を引く → collision
-        - bit=0: sender が c_sender を引く  → no collision
-        他プレイヤーは c_m を引く（passive）。
+        - bit=0: sender が c_sender を引く  → 衝突なし
+        他プレイヤーは c_m を引く（受動的に待機）。
 
         Args:
             runner: HeterogeneousRunner
@@ -68,13 +68,13 @@ class BeaconCommunicationMixin:
             actions = []
             for m in range(M):
                 if m == sender:
-                    # bit=1 なら receiver の arm を引く、bit=0 なら自分の arm
+                    # bit=1 なら受信側の arm を引き、bit=0 なら自分の arm を引く
                     actions.append(c[receiver] if bit == 1 else c[sender])
                 elif m == receiver:
-                    # 受信側は常に自分の arm を引いて collision を観測
+                    # 受信側は常に自分の arm を引いて衝突を観測
                     actions.append(c[receiver])
                 else:
-                    # 無関係プレイヤーは自分の通信 arm を引く（passive）
+                    # 無関係プレイヤーは自分の通信 arm を引く（受動的に待機）
                     actions.append(c[m])
 
             runner.step(actions)
@@ -91,7 +91,7 @@ class BeaconCommunicationMixin:
         Algorithm 4 Receive(): receiver が sender からビット列を受信する。
 
         _send() と同期して呼ばれることを前提とする。
-        receiver は c_receiver を引き、collision → 1、no collision → 0 として読み取る。
+        receiver は c_receiver を引き、衝突あり → 1、衝突なし → 0 として読み取る。
 
         Args:
             runner: HeterogeneousRunner
@@ -122,7 +122,7 @@ class BeaconCommunicationMixin:
         Send と Receive を同期実行し、受信側が観測したビット列を返す。
 
         1 ビットにつき 1 ステップ消費する。
-        他プレイヤーは c_m を引く（passive）。
+        他プレイヤーは c_m を引く（受動的に待機）。
 
         Args:
             runner: HeterogeneousRunner
@@ -149,7 +149,7 @@ class BeaconCommunicationMixin:
                     actions.append(c[m])
 
             result = runner.step(actions)
-            # receiver が collision を観測した場合 bit=1
+            # 受信側が衝突を観測した場合は bit=1
             received_bits.append(1 if result.collisions[receiver] else 0)
 
         return received_bits

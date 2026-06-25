@@ -1,5 +1,5 @@
 """
-Matching Oracle for BEACON.
+BEACON の Matching Oracle。
 
 UCB 行列 mu_bar[k][m] を受け取り、最大重み二部マッチング（player-arm 割当）を返す。
 """
@@ -48,7 +48,7 @@ def matching_oracle(mu_bar: List[List[float]], M: int) -> List[int]:
     except ImportError:
         pass
 
-    # scipy がない場合の fallback
+    # scipy がない場合のフォールバック
     from itertools import permutations
 
     best_val = -1.0

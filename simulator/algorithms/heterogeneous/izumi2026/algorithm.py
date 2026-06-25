@@ -17,7 +17,7 @@ Heterogeneous Multi-Channel MPMAB with Collision Sensing のモデル。
 実装上の注意:
     - 初期化は Izumi2026CollisionSensingInitializationMixin が担当し、
       HeterogeneousRunner のインターフェース（step, set_phase, elapsed, trace）を使う。
-    - 初期化 mixin が発生させる HorizonReachedHetero は内部で catch されないため、
+    - 初期化補助クラスが発生させる HorizonReachedHetero は内部で catch されないため、
       run() の except HorizonReachedHetero に直接伝播する。
 
 使い方:

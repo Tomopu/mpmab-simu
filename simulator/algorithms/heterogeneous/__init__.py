@@ -1,1 +1,1 @@
-"""Heterogeneous MPMAB algorithms."""
+"""heterogeneous MPMAB アルゴリズム。"""

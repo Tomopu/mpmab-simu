@@ -1,4 +1,4 @@
-"""Shi et al. (2021) BEACON algorithm for Heterogeneous MPMAB."""
+"""heterogeneous MPMAB 向けの Shi et al. (2021) BEACON アルゴリズム。"""
 
 from simulator.algorithms.heterogeneous.shi2021.algorithm import HeterogeneousShiBeacon2021
 from simulator.algorithms.heterogeneous.shi2021.runner_hetero import (

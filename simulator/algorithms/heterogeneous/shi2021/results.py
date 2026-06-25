@@ -1,4 +1,4 @@
-"""Result builder for BEACON (Shi 2021)."""
+"""BEACON (Shi 2021) の実行結果を構築するヘルパー。"""
 
 from __future__ import annotations
 

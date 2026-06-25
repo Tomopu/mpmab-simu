@@ -187,7 +187,6 @@ class ParallelBeaconEpochMixin:
         non_good = [a for a in range(K) if a not in good_set]
         dummy = non_good[0] if non_good else good_arms[0]
 
-        prev_p = [[-1] * M for _ in range(K)]
         # mu_tilde[k][m]: grand leader が保持する量子化済み平均報酬
         mu_tilde = [[0.0] * M for _ in range(K)]
 
@@ -207,6 +206,7 @@ class ParallelBeaconEpochMixin:
             # group_stats[g][k] = (weighted_sum, total_N) のグループ集約値
             group_stats: Dict[int, Dict[int, Tuple[float, int]]] = {}
 
+            max_followers_per_group = 0  # ダウンリンクコスト計算用
             for g in range(1, n + 1):
                 group_pids = state.group_map.get(g, [])
                 group_stats[g] = {}
@@ -236,6 +236,7 @@ class ParallelBeaconEpochMixin:
 
                 # follower → sub-leader の通信コスト（グループ g の follower 数 × Q × Ka）
                 n_followers_g = max(0, len(group_pids) - 1)  # sub-leader 除く
+                max_followers_per_group = max(max_followers_per_group, n_followers_g)
                 comm_steps_up = n_followers_g * Q * Ka
                 _consume_dummy_steps(runner, comm_steps_up, dummy, M)
 
@@ -280,7 +281,8 @@ class ParallelBeaconEpochMixin:
             assignment = matching_oracle(mu_bar, M)
 
             # 4. ダウンリンク通信コスト（grand leader → sub-leader → follower）
-            comm_steps_down = (n_subleaders + n_followers_g) * arm_bits_needed
+            # n グループが並列通信するため、最も多い follower 数のグループで近似する
+            comm_steps_down = (n_subleaders + max_followers_per_group) * arm_bits_needed
             _consume_dummy_steps(runner, comm_steps_down, dummy, M)
 
             # 5. last_assigned_arms を更新（探索前に保存）
@@ -302,8 +304,6 @@ class ParallelBeaconEpochMixin:
                     state.T[k_a][m] += 1
                     state.R[k_a][m] += result.rewards[m]
                     state.samples[k_a][m].append(result.rewards[m])
-
-            prev_p = [row[:] for row in curr_p]
 
         # HorizonReachedHetero が来てここには到達しない
         return state.last_assigned_arms  # type: ignore[return-value]

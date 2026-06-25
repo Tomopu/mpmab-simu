@@ -122,9 +122,9 @@ def run(self, runner: HeterogeneousRunner) -> Dict[str, object]:
 
 **修正**: `Dict` を import するか、Python 3.9+ の `dict[str, object]` に変更する。
 
-### [Bug B] `n_followers_g` がダウンリンクで最後グループの値になっている (`parallel_beacon_epoch.py` L283)
+### [Bug B] `n_followers_g` がダウンリンクで最後グループの値になっている (`algorithm5_parallel_beacon_epoch.py` L283)
 
-**場所**: `simulator/algorithms/heterogeneous/izumi2026/parallel_beacon_epoch.py`
+**場所**: `simulator/algorithms/heterogeneous/izumi2026/algorithm5_parallel_beacon_epoch.py`
 
 アップリンクのループ内で `n_followers_g` がグループごとに上書きされ、ループ終了後は
 `g = n`（最後のグループ）の follower 数になる。続くダウンリンクコスト計算がその値を参照しており、
@@ -142,9 +142,9 @@ comm_steps_down = (n_subleaders + n_followers_g) * arm_bits_needed  # ← 不正
 
 **修正**: ループ外で `max_followers_per_group` を集計し、それを使う。
 
-### [Bug C] `prev_p` が未使用のデッドコード (`parallel_beacon_epoch.py` L190, L306)
+### [Bug C] `prev_p` が未使用のデッドコード (`algorithm5_parallel_beacon_epoch.py` L190, L306)
 
-**場所**: `simulator/algorithms/heterogeneous/izumi2026/parallel_beacon_epoch.py`
+**場所**: `simulator/algorithms/heterogeneous/izumi2026/algorithm5_parallel_beacon_epoch.py`
 
 `prev_p` が初期化・更新されるが、どこでも読まれていない。
 
@@ -164,5 +164,5 @@ prev_p = [row[:] for row in curr_p]    # L306: 更新（未使用）
 |---|------|------|--------|
 | 1 | 擬似コードの式誤り | heterogeneous 擬似コード Algorithm 2 | **高** |
 | 2 | `Dict` import 漏れ | heterogeneous/izumi2026/algorithm.py L35 | **中** |
-| 3 | `n_followers_g` ステール変数 | parallel_beacon_epoch.py L283 | **中** |
-| 4 | `prev_p` デッドコード | parallel_beacon_epoch.py L190, L306 | **低** |
+| 3 | `n_followers_g` ステール変数 | algorithm5_parallel_beacon_epoch.py L283 | **中** |
+| 4 | `prev_p` デッドコード | algorithm5_parallel_beacon_epoch.py L190, L306 | **低** |

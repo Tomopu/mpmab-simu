@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict, List
 
 from simulator.algorithms.heterogeneous.izumi2026.states import ParallelBeaconPlayerState
-from simulator.algorithms.heterogeneous.izumi2026.parallel_beacon_epoch import _player_group
+from simulator.algorithms.heterogeneous.izumi2026.helpers import player_group
 from simulator.algorithms.heterogeneous.shi2021.runner_hetero import HeterogeneousRunner
 
 
@@ -45,7 +45,7 @@ def build_parallel_beacon_result(
             M_hat=M_hat_list[m],
             good_arms=list(good_arms),
             assigned_arm=assigned_arms[m],
-            group=_player_group(j_list[m], n) if n > 0 else 1,
+            group=player_group(j_list[m], n) if n > 0 else 1,
         )
         for m in range(M)
     ]

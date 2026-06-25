@@ -15,7 +15,7 @@ Heterogeneous Multi-Channel MPMAB with Collision Sensing のモデル。
     sub-leader (j=2..n) が階層的に割当を中継する。
 
 実装上の注意:
-    - 初期化は Izumi2026CollisionSensingInitializationMixin が担当し、
+    - 初期化は algorithm1〜3 の collision-sensing 補助クラスが担当し、
       HeterogeneousRunner のインターフェース（step, set_phase, elapsed, trace）を使う。
     - 初期化補助クラスが発生させる HorizonReachedHetero は内部で catch されないため、
       run() の except HorizonReachedHetero に直接伝播する。
@@ -32,12 +32,21 @@ from __future__ import annotations
 import random
 from typing import Dict, List, Optional
 
-from simulator.algorithms.heterogeneous.izumi2026.parallel_beacon_epoch import (
-    ParallelBeaconEpochMixin,
+from simulator.algorithms.heterogeneous.izumi2026.algorithm1_select_collision_sensing_channels import (
+    Izumi2026SelectCollisionSensingChannelsMixin,
+)
+from simulator.algorithms.heterogeneous.izumi2026.algorithm2_parallel_virtual_musical_chairs_collision_sensing import (
+    Izumi2026CollisionSensingParallelVirtualMusicalChairsMixin,
+)
+from simulator.algorithms.heterogeneous.izumi2026.algorithm3_parallel_virtual_number_players_collision_sensing import (
+    Izumi2026CollisionSensingParallelVirtualNumberPlayersMixin,
+)
+from simulator.algorithms.heterogeneous.izumi2026.algorithm4_parallel_beacon_initial_sampling import (
+    ParallelBeaconInitialSamplingMixin,
     ParallelBeaconExploreState,
 )
-from simulator.algorithms.heterogeneous.izumi2026.collision_sensing_initialization import (
-    Izumi2026CollisionSensingInitializationMixin,
+from simulator.algorithms.heterogeneous.izumi2026.algorithm5_parallel_beacon_epoch import (
+    ParallelBeaconEpochMixin,
 )
 from simulator.algorithms.heterogeneous.izumi2026.results import build_parallel_beacon_result
 from simulator.algorithms.heterogeneous.shi2021.runner_hetero import (
@@ -47,7 +56,10 @@ from simulator.algorithms.heterogeneous.shi2021.runner_hetero import (
 
 
 class HeterogeneousMultiChannelIzumi2026(
-    Izumi2026CollisionSensingInitializationMixin,
+    Izumi2026SelectCollisionSensingChannelsMixin,
+    Izumi2026CollisionSensingParallelVirtualMusicalChairsMixin,
+    Izumi2026CollisionSensingParallelVirtualNumberPlayersMixin,
+    ParallelBeaconInitialSamplingMixin,
     ParallelBeaconEpochMixin,
 ):
     """

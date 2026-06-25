@@ -31,12 +31,14 @@ Homogeneous / Heterogeneous 全 4 モデルの実装内容をまとめたドキ�
 |---------|-----------|
 | 環境（Heterogeneous env） | `simulator/envs/heterogeneous_mpmab.py` |
 | 実行ランナー | `simulator/algorithms/heterogeneous/shi2021/runner_hetero.py` |
-| Orthogonalization + Rank Assignment（Wang 2020） | `simulator/algorithms/heterogeneous/shi2021/wang2020_orthogonalization.py` |
-| BEACON Send/Receive（forced collision 通信） | `simulator/algorithms/heterogeneous/shi2021/shi2021_beacon_communication.py` |
-| BEACON エポックループ | `simulator/algorithms/heterogeneous/shi2021/shi2021_beacon_epoch.py` |
+| Orthogonalization（Wang 2020） | `simulator/algorithms/heterogeneous/shi2021/algorithm1_orthogonalization.py` |
+| Rank Assignment（Wang 2020） | `simulator/algorithms/heterogeneous/shi2021/algorithm2_rank_assignment.py` |
+| BEACON Initial Sampling | `simulator/algorithms/heterogeneous/shi2021/algorithm3_initial_sampling.py` |
+| BEACON エポックループ | `simulator/algorithms/heterogeneous/shi2021/algorithm4_beacon_epoch.py` |
+| BEACON Send/Receive（forced collision 通信） | `simulator/algorithms/heterogeneous/shi2021/communication.py` |
 | Matching Oracle（Hungarian 法） | `simulator/algorithms/heterogeneous/shi2021/oracle.py` |
 | Shi 2021 BEACON メインクラス | `simulator/algorithms/heterogeneous/shi2021/algorithm.py` |
-| ParallelBEACON エポックループ | `simulator/algorithms/heterogeneous/izumi2026/parallel_beacon_epoch.py` |
+| ParallelBEACON 初期化・エポックループ | `simulator/algorithms/heterogeneous/izumi2026/algorithm1_*.py`〜`algorithm5_*.py` |
 | Izumi 2026 ParallelBEACON メインクラス | `simulator/algorithms/heterogeneous/izumi2026/algorithm.py` |
 | 評価指標（Heterogeneous） | `simulator/utils/metrics.py` — `compute_hetero_metrics` |
 | 比較実験スクリプト | `simulator/experiments/compare_heterogeneous.py` |
@@ -159,7 +161,7 @@ tau_comm = ceil(ln(1/δ) / μ̃)        # VNP・HDE 用
 
 ### BEACON（Shi 2021）の通信実装
 
-**内容:** BEACON の `Send` / `Receive` は 1 bit = 1 ステップで実際に forced collision をシミュレートする（`shi2021_beacon_communication.py`）。報酬推定値の量子化（EncoderSendFloat / DecoderReceiveFloat）は実装済み。
+**内容:** BEACON の `Send` / `Receive` は 1 bit = 1 ステップで実際に forced collision をシミュレートする（`communication.py`）。報酬推定値の量子化（EncoderSendFloat / DecoderReceiveFloat）は実装済み。
 
 ---
 

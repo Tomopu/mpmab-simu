@@ -46,15 +46,22 @@ mpmab-simu/
 │   │       ├── shi2021/
 │   │       │   ├── algorithm.py                     # BEACON クラス本体・run()
 │   │       │   ├── runner_hetero.py                 # HeterogeneousRunner
-│   │       │   ├── wang2020_orthogonalization.py    # Orthogonalization + Rank Assignment
-│   │       │   ├── shi2021_beacon_communication.py  # Send/Receive ビット伝送
-│   │       │   ├── shi2021_beacon_epoch.py          # エポックループ（通信+探索）
+│   │       │   ├── algorithm1_orthogonalization.py  # Orthogonalization
+│   │       │   ├── algorithm2_rank_assignment.py    # Rank Assignment
+│   │       │   ├── algorithm3_initial_sampling.py   # Initial Sampling
+│   │       │   ├── algorithm4_beacon_epoch.py       # エポックループ（通信+探索）
+│   │       │   ├── communication.py                 # Send/Receive ビット伝送
 │   │       │   ├── oracle.py                        # Matching Oracle（Hungarian 法）
 │   │       │   ├── states.py
 │   │       │   └── results.py
 │   │       └── izumi2026/
 │   │           ├── algorithm.py                     # ParallelBEACON クラス本体・run()
-│   │           ├── parallel_beacon_epoch.py         # ParallelBEACON エポックループ
+│   │           ├── algorithm1_select_collision_sensing_channels.py
+│   │           ├── algorithm2_parallel_virtual_musical_chairs_collision_sensing.py
+│   │           ├── algorithm3_parallel_virtual_number_players_collision_sensing.py
+│   │           ├── algorithm4_parallel_beacon_initial_sampling.py
+│   │           ├── algorithm5_parallel_beacon_epoch.py
+│   │           ├── helpers.py
 │   │           ├── states.py
 │   │           └── results.py
 │   ├── utils/

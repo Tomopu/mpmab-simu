@@ -26,18 +26,26 @@ from simulator.algorithms.heterogeneous.shi2021.runner_hetero import (
     HeterogeneousRunner,
     HorizonReachedHetero,
 )
-from simulator.algorithms.heterogeneous.shi2021.wang2020_orthogonalization import (
+from simulator.algorithms.heterogeneous.shi2021.algorithm1_orthogonalization import (
     Wang2020OrthogonalizationMixin,
 )
-from simulator.algorithms.heterogeneous.shi2021.shi2021_beacon_epoch import (
-    BeaconEpochMixin,
+from simulator.algorithms.heterogeneous.shi2021.algorithm2_rank_assignment import (
+    Wang2020RankAssignmentMixin,
+)
+from simulator.algorithms.heterogeneous.shi2021.algorithm3_initial_sampling import (
+    BeaconInitialSamplingMixin,
     BeaconExploreState,
+)
+from simulator.algorithms.heterogeneous.shi2021.algorithm4_beacon_epoch import (
+    BeaconEpochMixin,
 )
 from simulator.algorithms.heterogeneous.shi2021.results import build_beacon_result
 
 
 class HeterogeneousShiBeacon2021(
     Wang2020OrthogonalizationMixin,
+    Wang2020RankAssignmentMixin,
+    BeaconInitialSamplingMixin,
     BeaconEpochMixin,
 ):
     """

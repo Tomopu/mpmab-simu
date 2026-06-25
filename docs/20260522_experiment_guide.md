@@ -106,10 +106,10 @@ python -m simulator.experiments.compare_homogeneous --experiment speedup --trial
 #### `tradeoff` — good arm 探索コストとの tradeoff
 
 ```
-K=20, M=5, T=100000
+K=20, M=8, T=1000000
 means=[0.95, 0.9, 0.86, 0.82, 0.78, 0.7, 0.64, 0.58, 0.52, 0.46,
        0.4, 0.35, 0.3, 0.25, 0.2, 0.16, 0.12, 0.09, 0.06, 0.03]
-n_values=[1, 2, 4, 6]
+n_values=[1, 2, 3, 4, 5, 6]
 trials=100, seed_base=20260510
 ```
 
@@ -471,7 +471,7 @@ pytest -x
 |---|---|---|
 | 5 | 2 | 2 |
 | 10 | 5 | 4 |
-| 20 | 5 | 14 |
+| 20 | 8 | 11 |
 
 ### Heterogeneous（ParallelBEACON）
 

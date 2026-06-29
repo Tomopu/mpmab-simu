@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from simulator.algorithms.heterogeneous.izumi2026.helpers import build_group_map
 from simulator.algorithms.heterogeneous.shi2021.runner_hetero import HeterogeneousRunner
@@ -32,6 +32,7 @@ class ParallelBeaconExploreState:
         n: int,
         good_arms: List[int],
         rank_list: List[int],
+        state_arms: Optional[List[int]] = None,
     ) -> None:
         self.T = T
         self.R = R
@@ -41,6 +42,10 @@ class ParallelBeaconExploreState:
         self.n = n
         self.good_arms = good_arms
         self.rank_list = rank_list
+        # state_arms[m]: player m が通信中 idle のときに pull する arm（CSVMC の s_list から設定）。
+        # 全員が異なる arm を持つため collision が起きず、non-zero reward が発生する。
+        # None の場合は player index ベースのフォールバックを使う。
+        self.state_arms: List[int] = state_arms if state_arms is not None else list(range(M))
 
         self.group_map: Dict[int, List[int]] = build_group_map(rank_list, n)
         self.grand_leader_pid: int = next(
@@ -62,6 +67,7 @@ class ParallelBeaconInitialSamplingMixin:
         runner: HeterogeneousRunner,
         good_arms: List[int],
         rank_list: List[int],
+        s_list: Optional[List[int]] = None,
     ) -> ParallelBeaconExploreState:
         """
         ParallelBEACON の初期サンプリングフェーズ（K ステップ）。
@@ -70,6 +76,7 @@ class ParallelBeaconInitialSamplingMixin:
             runner: HeterogeneousRunner
             good_arms: FindMultipleGoodArms の出力 G（0-based, 長さ n）
             rank_list: 各プレイヤーの rank（1-based）
+            s_list: CSVMC が返す external rank（各プレイヤーの通信 idle arm）
 
         Returns:
             ParallelBeaconExploreState
@@ -99,4 +106,5 @@ class ParallelBeaconInitialSamplingMixin:
             K=K, M=M, n=n,
             good_arms=good_arms,
             rank_list=rank_list,
+            state_arms=s_list,
         )

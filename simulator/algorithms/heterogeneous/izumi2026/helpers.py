@@ -30,12 +30,35 @@ def consume_dummy_steps(
     dummy_arm: int,
     M: int,
 ) -> None:
-    """通信コストとして n_steps ステップを消費する。"""
+    """通信コストとして n_steps ステップを消費する。全員同じ arm を引くため collision が発生する。"""
     if n_steps <= 0:
         return
     actions = [dummy_arm] * M
     for _ in range(n_steps):
         runner.step(actions)
+
+
+def consume_comm_steps(
+    runner: HeterogeneousRunner,
+    n_steps: int,
+    state_arms: List[int],
+) -> None:
+    """
+    通信コストとして n_steps ステップを消費する。
+
+    BEACON の通信中は idle な player が自分の state arm を引くため、
+    全員が異なる arm を引き collision が発生しない。
+    state_arms[m]: player m が引く arm（CSVMC の s_list から設定、全員で重複なし）。
+
+    Args:
+        runner: HeterogeneousRunner
+        n_steps: 消費するステップ数
+        state_arms: 各 player の state arm（長さ M, 重複なし推奨）
+    """
+    if n_steps <= 0:
+        return
+    for _ in range(n_steps):
+        runner.step(state_arms)
 
 
 def floor_log2(n: int) -> int:

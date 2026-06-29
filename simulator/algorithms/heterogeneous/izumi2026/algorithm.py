@@ -177,7 +177,7 @@ class HeterogeneousMultiChannelIzumi2026(
         explore_state: Optional[ParallelBeaconExploreState] = None
         try:
             explore_state = self.parallel_beacon_initial_sampling(
-                runner, good_arms, j_list
+                runner, good_arms, j_list, s_list=s_list
             )
         except HorizonReachedHetero:
             return build_parallel_beacon_result(

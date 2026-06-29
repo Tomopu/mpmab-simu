@@ -130,6 +130,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Shi 2021 BEACON を省略し、ParallelBEACON のみ実行する。",
     )
+    parser.add_argument(
+        "--show-epoch-phases",
+        action="store_true",
+        help=(
+            "regret curve に BEACON エポックの comm/explore 切り替えを背景シェーディングで表示する。"
+            " trial=0 の最初の ParallelBEACON（または BEACON）の phase 列を使用する。"
+        ),
+    )
     return parser
 
 
@@ -199,6 +207,7 @@ def main() -> None:
             phase_summary=summary_df,
             show_phase_boundaries=not args.no_phase_lines,
             log_xscale=args.log_xscale,
+            show_epoch_phases=args.show_epoch_phases,
         )
         save_metric_bar(
             summary_df,

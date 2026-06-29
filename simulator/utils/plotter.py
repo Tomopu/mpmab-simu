@@ -90,22 +90,32 @@ def save_regret_curve(
     phase_summary: pd.DataFrame | None = None,
     show_phase_boundaries: bool = True,
     log_xscale: bool = False,
+    show_epoch_phases: bool = False,
 ) -> None:
     """
     平均 cumulative regret の折れ線グラフを保存する。
 
     Args:
-        curves: columns = algorithm, n, time, cumulative_regret を含む DataFrame。
+        curves: columns = algorithm, n, time, cumulative_regret, phase を含む DataFrame。
         output_path: 保存先 PNG path。
         confidence: 信頼区間（正規近似の 95% CI を想定）。
         phase_summary: trial summary DataFrame。指定すると phase 終了時刻を縦線で描く。
         show_phase_boundaries: True の場合、phase 終了時刻の平均を描く。
         log_xscale: True にすると x 軸を対数スケールにする（初期フェーズの重なり解消に有効）。
+        show_epoch_phases: True の場合、BEACON エポックの comm/explore 切り替えを
+            背景シェーディングで表示する。trial=0 の最初の izumi2026_parallel_beacon
+            （または shi2021_beacon）の phase 列を使用する。
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(10, 6))
+
+    # epoch comm/explore 背景シェーディング（曲線より先に描いて背景に置く）
+    epoch_phase_patches = []
+    if show_epoch_phases and "phase" in curves.columns:
+        epoch_phase_patches = _draw_epoch_phases(ax, curves)
+
     grouped = (
         curves.groupby(["algorithm", "n", "time"])["cumulative_regret"]
         .agg(["mean", "std", "count"])
@@ -161,7 +171,7 @@ def save_regret_curve(
         title = f"{title} {condition}"
     ax.set_title(title)
     ax.grid(True, alpha=0.3)
-    _add_combined_legend(ax, phase_specs)
+    _add_combined_legend(ax, phase_specs, epoch_phase_patches)
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)
     plt.close(fig)
@@ -239,7 +249,68 @@ def _draw_phase_boundaries(
         )
 
 
-def _add_combined_legend(ax: plt.Axes, phase_specs=None) -> None:
+def _draw_epoch_phases(ax: plt.Axes, curves: pd.DataFrame) -> list:
+    """
+    BEACON エポックの comm/explore 切り替えを背景シェーディングで描く。
+
+    trial=0 の izumi2026_parallel_beacon（なければ shi2021_beacon）の最小 n を使う。
+    各サンプル区間を phase 列で判定し、comm = 薄赤、explore = 薄青で塗る。
+    init/not_started 区間は薄灰で塗る。
+
+    Returns:
+        legend 用の Patch リスト（[comm_patch, explore_patch, init_patch]）
+    """
+    import matplotlib.patches as mpatches
+
+    # 対象 (algorithm, n) を選ぶ
+    candidate_algos = ["izumi2026_parallel_beacon", "shi2021_beacon"]
+    ref = pd.DataFrame()
+    for algo in candidate_algos:
+        sub = curves[curves["algorithm"] == algo]
+        if sub.empty:
+            continue
+        # trial=0 かつ最小 n
+        sub0 = sub[sub["trial"] == 0]
+        if sub0.empty:
+            sub0 = sub[sub["trial"] == sub["trial"].min()]
+        n_min = sub0["n"].min()
+        ref = sub0[sub0["n"] == n_min].sort_values("time").reset_index(drop=True)
+        if not ref.empty:
+            break
+
+    if ref.empty or "phase" not in ref.columns:
+        return []
+
+    _COMM_COLOR = "#FF9999"    # 薄赤
+    _EXPLORE_COLOR = "#99CCFF"  # 薄青
+    _INIT_COLOR = "#DDDDDD"    # 薄灰
+
+    def _phase_color(phase_str: str) -> str:
+        if "_comm" in phase_str:
+            return _COMM_COLOR
+        if "_explore" in phase_str:
+            return _EXPLORE_COLOR
+        return _INIT_COLOR
+
+    # サンプル点間を塗る
+    times = ref["time"].tolist()
+    phases = ref["phase"].tolist()
+
+    x_start = 0
+    for i, (t, ph) in enumerate(zip(times, phases)):
+        x_end = t
+        color = _phase_color(ph)
+        ax.axvspan(x_start, x_end, color=color, alpha=0.18, linewidth=0, zorder=1)
+        x_start = x_end
+
+    # 凡例用 Patch
+    comm_patch = mpatches.Patch(color=_COMM_COLOR, alpha=0.5, label="epoch comm (trial 0)")
+    explore_patch = mpatches.Patch(color=_EXPLORE_COLOR, alpha=0.5, label="epoch explore (trial 0)")
+    init_patch = mpatches.Patch(color=_INIT_COLOR, alpha=0.5, label="init (trial 0)")
+    return [comm_patch, explore_patch, init_patch]
+
+
+def _add_combined_legend(ax: plt.Axes, phase_specs=None, epoch_phase_patches=None) -> None:
     """曲線の凡例とフェーズ境界線の凡例をまとめて表示する。"""
     curve_handles, curve_labels = ax.get_legend_handles_labels()
 
@@ -248,8 +319,12 @@ def _add_combined_legend(ax: plt.Axes, phase_specs=None) -> None:
         Line2D([0], [0], color="0.35", linestyle=linestyle, linewidth=2.0, alpha=0.8, label=f"{label} end")
         for _, label, linestyle in (phase_specs or [])
     ]
-    handles = curve_handles + phase_handles
-    labels = curve_labels + [h.get_label() for h in phase_handles]
+    # epoch comm/explore 背景シェーディングの凡例
+    epoch_handles = list(epoch_phase_patches or [])
+    epoch_labels = [h.get_label() for h in epoch_handles]
+
+    handles = curve_handles + phase_handles + epoch_handles
+    labels = curve_labels + [h.get_label() for h in phase_handles] + epoch_labels
     ax.legend(handles, labels, fontsize=8, ncols=2, loc="upper left")
 
 

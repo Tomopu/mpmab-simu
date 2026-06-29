@@ -308,21 +308,41 @@ python -m simulator.experiments.compare_heterogeneous --experiment asym
 python -m simulator.experiments.compare_heterogeneous --experiment asym --trials 20
 ```
 
-#### `large` — 大規模・巡回報酬行列
+#### `large` — 大規模・巡回報酬行列（統計的有意性検証用）
 
 ```
-K=20, M=8, T=1000000
+K=20, M=8, T=1,000,000
 means_matrix: homogeneous tradeoff の means 値（0.95〜0.03）を
               シフト=2 の巡回行列で配置
 n_values=[1, 2, 3, 4, 5, 6]
-trials=20, seed_base=20260510
+trials=100, seed_base=20260510
 ```
 
 最適割当: p0→arm0, p1→arm18, p2→arm16, p3→arm14, p4→arm12, p5→arm10, p6→arm8, p7→arm6（全員 0.95）
 
+trials=100 の根拠: 20 trials では n=5 と n=6 の差（約 5,400）が SE=±9,516 のノイズに埋まる。
+100 trials で SE=±4,256 になり 2.5σ 水準で有意差を検出できる。
+
 ```bash
 python -m simulator.experiments.compare_heterogeneous --experiment large
 python -m simulator.experiments.compare_heterogeneous --experiment large --no-beacon
+```
+
+#### `large_converge` — 収束挙動観察用（T=100,000）
+
+```
+K=20, M=8, T=100,000
+means_matrix: large と同一
+n_values=[1, 2, 3, 4, 5, 6]
+trials=50, seed_base=20260510
+```
+
+T=100,000 の根拠: UCB ボーナス（0.016）< 最小 arm gap（0.030）となり割当が収束する。
+Shi et al. (2021) が T=100,000 で収束を確認したことと一致。
+学習曲線の「肘」（収束点）を観察したい場合に使う。
+
+```bash
+python -m simulator.experiments.compare_heterogeneous --experiment large_converge
 ```
 
 ---
@@ -331,7 +351,7 @@ python -m simulator.experiments.compare_heterogeneous --experiment large --no-be
 
 | オプション | デフォルト | 内容 |
 |---|---|---|
-| `--experiment` | `small` | 実験プリセット名。`small` / `asym` / `large` から選ぶ。 |
+| `--experiment` | `small` | 実験プリセット名。`small` / `asym` / `large` / `large_converge` から選ぶ。 |
 | `--trials N` | プリセット依存 | trial 数。 |
 | `--horizon T` | プリセット依存 | horizon T。 |
 | `--K K` | プリセット依存 | arm 数 K を上書き。`--means-matrix` も必須。 |
@@ -481,7 +501,7 @@ BEACON は `K >= M + 1`（broadcast arm が 1 本必要）、ParallelBEACON は 
 |---|---|---|---|
 | 5 | 2 | 2 | `small` |
 | 6 | 3 | 2 | `asym` |
-| 20 | 8 | 11 | `large` |
+| 20 | 8 | 11 | `large`, `large_converge` |
 
 `--n-values` に範囲外の値を指定すると自動的に除外され、有効な値がなければエラーになる。
 

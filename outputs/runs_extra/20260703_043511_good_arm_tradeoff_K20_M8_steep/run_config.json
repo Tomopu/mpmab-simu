@@ -1,0 +1,61 @@
+{
+  "config": {
+    "name": "good_arm_tradeoff_K20_M8_steep",
+    "K": 20,
+    "M": 8,
+    "T": 1000000,
+    "delta": 7.238241365054197e-08,
+    "means": [
+      0.9,
+      0.4,
+      0.28,
+      0.22,
+      0.17,
+      0.14,
+      0.12,
+      0.11,
+      0.04,
+      0.035,
+      0.03,
+      0.028,
+      0.026,
+      0.024,
+      0.022,
+      0.02,
+      0.018,
+      0.016,
+      0.014,
+      0.012
+    ],
+    "n_values": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "trials": 50,
+    "seed_base": 20260510
+  },
+  "args": {
+    "experiment": "tradeoff",
+    "trials": 50,
+    "horizon": 1000000,
+    "sample_points": 300,
+    "K": 20,
+    "M": 8,
+    "n_values": "1,2,3,4,5,6",
+    "means": "0.9,0.4,0.28,0.22,0.17,0.14,0.12,0.11,0.04,0.035,0.03,0.028,0.026,0.024,0.022,0.02,0.018,0.016,0.014,0.012",
+    "mean_high": 0.9,
+    "mean_low": 0.1,
+    "name_suffix": "K20_M8_steep",
+    "ci": 0.95,
+    "no_plots": true,
+    "no_phase_lines": false,
+    "log_xscale": false,
+    "retry_on_failure": false,
+    "max_attempts": 3,
+    "output_root": "outputs/runs_extra"
+  }
+}

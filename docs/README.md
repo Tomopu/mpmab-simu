@@ -28,6 +28,9 @@
 - [20260518_bugfix_report.md](20260518_bugfix_report.md)
   - Huang 2022 / Izumi 2026 の実装バグ調査と修正レポート（T1 式、reject arm 確認チェック、τ_rank など）。
 
+- [20260629_beacon_parallelbeacon_communication_notes.md](20260629_beacon_parallelbeacon_communication_notes.md)
+  - BEACON が量子化して送る情報、ParallelBEACON の Phase A / Phase B 通信コスト、n を増やしても改善が出にくい理由、heterogeneous setting での改善案の制約。
+
 - [20260522_bugfix_hde_n_greater_than_1.html](20260522_bugfix_hde_n_greater_than_1.html)
   - HDE n>1 バグ（C_assign 除外による Leader 割当経路なし・M0 デクリメントによる Follower idx 負値）の原因・修正を
     インタラクティブアニメーション付きで解説した HTML レポート。

@@ -1,0 +1,50 @@
+{
+  "config": {
+    "name": "good_arm_tradeoff_K10_M4",
+    "K": 10,
+    "M": 4,
+    "T": 1000000,
+    "delta": 7.238241365054197e-08,
+    "means": [
+      0.9,
+      0.8111111111111111,
+      0.7222222222222222,
+      0.6333333333333333,
+      0.5444444444444445,
+      0.45555555555555555,
+      0.3666666666666667,
+      0.2777777777777778,
+      0.18888888888888888,
+      0.09999999999999998
+    ],
+    "n_values": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "trials": 50,
+    "seed_base": 20260510
+  },
+  "args": {
+    "experiment": "tradeoff",
+    "trials": 50,
+    "horizon": 1000000,
+    "sample_points": 300,
+    "K": 10,
+    "M": 4,
+    "n_values": "1,2,3,4,5,6",
+    "means": null,
+    "mean_high": 0.9,
+    "mean_low": 0.1,
+    "name_suffix": "K10_M4",
+    "ci": 0.95,
+    "no_plots": true,
+    "no_phase_lines": false,
+    "log_xscale": false,
+    "retry_on_failure": true,
+    "max_attempts": 3,
+    "output_root": "outputs/runs_extra"
+  }
+}

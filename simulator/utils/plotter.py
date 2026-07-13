@@ -30,7 +30,6 @@ _HETEROGENEOUS_PHASE_SPECS = [
     ("ortho_duration",           "ortho",   (0, (2, 2))),
     ("rank_assignment_duration", "rank",    (0, (6, 2))),
     ("init_sample_duration",     "sample",  "--"),
-    ("beacon_comm_duration",     "comm",    "-."),
 ]
 
 _ALGORITHM_LABELS = {

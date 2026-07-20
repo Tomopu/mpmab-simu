@@ -79,6 +79,22 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
         active_arms = list(range(K))
         good_set = set(good_arms)
 
+        # FIX-4(a): フェーズを跨いで蓄積する棄却済みアーム集合。
+        # 担当チャネルがこの集合に入ったサブリーダーは、以後フォロワーの
+        # 割当列に合流させる（救済パス）。
+        rejected_cum: set = set()
+
+        # 検証用カウンタ（決定的な集計のみで乱数は消費しない）:
+        #   hde_fix5_r_neq_j_count: 探索開始位置の順位 r が内部ランク j と
+        #       異なった (フェーズ, プレイヤー) の延べ回数（FIX-5 の発動回数）
+        #   hde_fix4a_rescue_count: 救済パスで割り当てられたサブリーダーの延べ人数
+        #   hde_channel_rejected_count: 「未割当サブリーダーの担当チャネルが累積棄却
+        #       集合に入っている」状態が観測された (フェーズ, サブリーダー) の延べ回数
+        #       （救済の前提条件。割当が成立したかどうかによらず数える）
+        self.hde_fix5_r_neq_j_count = 0
+        self.hde_fix4a_rescue_count = 0
+        self.hde_channel_rejected_count = 0
+
         # good arms 以外のダミー腕（通信フェーズのダミーアクション）
         non_good_arms = [a for a in range(K) if a not in good_set]
         dummy = non_good_arms[0] if non_good_arms else 0
@@ -94,9 +110,27 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             # 論文: for t=1..|K|*2^p*ceil(ln(1/delta))
             T_explore = Ka * (2**p) * _ceil(_ln(1.0 / delta))
 
-            # 各プレイヤーの探索開始 position（j を active_arms 内の 0-based index に変換）
-            # 論文: k <- j (1-based) → 実装: pos = (j-1) % Ka (0-based)
-            pos = [(j_list[m] - 1) % Ka for m in range(M)]
+            # FIX-5: 探索開始 position は内部ランク j ではなく
+            # 「未割当プレイヤーの内部ランク集合（昇順）における自身の順位 r（1-based）」で決める。
+            # サブリーダーが先に割当てられて未割当集合が非連続になると、j ベースでは
+            # 開始位置が mod Ka で衝突し 2 人が全探索ステップで同一アームを引き続けうる。
+            # r は未割当プレイヤー間で相異なり、r <= M' <= Ka なので衝突しない。
+            #
+            # index 規約: 論文 (Algorithm 5) は k <- r (1-based) を最初に引くが、
+            # 実装はループ内で pos を +1 してから引く（pre-increment）ため、
+            # huang2022 実装と同じ「初期値 pos = (r-1) % Ka → 最初に引くのは
+            # active_arms[r % Ka]」とする。全員が同じ +1 回転を受けるだけなので
+            # 論文の「開始位置が相異なる」性質は保たれ、未割当集合が連続
+            # {1..M'}（r == j）の間は従来実装・huang2022 と行動列が完全一致する。
+            unassigned_ranks = sorted(j_list[m] for m in range(M) if f[m] == -1)
+            pos = [0] * M
+            for m in range(M):
+                if f[m] == -1:
+                    # r: 未割当プレイヤー中での自身の順位（1-based）
+                    r = unassigned_ranks.index(j_list[m]) + 1
+                    if r != j_list[m]:
+                        self.hde_fix5_r_neq_j_count += 1
+                    pos[m] = (r - 1) % Ka
 
             for _ in range(T_explore):
                 actions = []
@@ -164,6 +198,21 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                 p=p,
             )
 
+            # FIX-4(a): 棄却集合をフェーズを跨いで蓄積する（救済判定に使う）。
+            # 今フェーズの C_reject も割当計算前に反映してよい
+            # （受理・棄却集合は割当計算前に全プレイヤーへ配布済みのため）。
+            rejected_cum |= set(C_reject)
+
+            # 救済の前提条件（担当チャネル棄却済みの未割当サブリーダー）の観測を数える
+            if n > 1:
+                self.hde_channel_rejected_count += sum(
+                    1
+                    for m in range(M)
+                    if f[m] == -1
+                    and j_list[m] <= n
+                    and good_arms[j_list[m] - 1] in rejected_cum
+                )
+
             # ---- ComGrandLeader downlink: Grand Leader → Sub-Leader → Follower ----
             # downlink メッセージサイズ: 2（サイズ情報）+ |C_accept| + |C_reject|
             Q0 = _ceil(math.log2(max(2, Ka)))
@@ -200,6 +249,7 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                 else:
                     # n>1: Grand Leader (j=1) と Sub-Leader (2<=j<=n) は
                     # 担当チャンネル good_arms[j-1] が C_accept に入ったとき割り当て。
+                    # 担当チャンネルが棄却済みのサブリーダーはフォロワー列に合流（FIX-4(a)）。
                     # Follower (j>n) は未割当フォロワー内の相対 rank ベースで割り当て。
                     #
                     # _try_assign（idx = M0 - j）を使わない理由:
@@ -215,16 +265,32 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                             if channel_arm in C_accept_set:
                                 f[m] = channel_arm
 
-                    # 2. follower 割り当て（j>n）: 未割当フォロワーを j の降順にソートし、
-                    #    C_assign_list の先頭から順に割り当てる（j が大きいほど先に割り当て）
-                    unassigned_followers = sorted(
-                        [m for m in range(M) if f[m] == -1 and j_list[m] > n],
+                    # 2. FIX-4(a): 担当チャネルが累積棄却集合に入った未割当サブリーダーは
+                    #    どのフェーズでも担当チャネル経由の割当を受けられないため、
+                    #    フォロワーの割当列に合流させる（救済パス）。
+                    rescued_subleaders = [
+                        m
+                        for m in range(M)
+                        if f[m] == -1
+                        and j_list[m] <= n
+                        and good_arms[j_list[m] - 1] in rejected_cum
+                    ]
+
+                    # 3. follower 割り当て: 未割当フォロワー（j>n）と合流サブリーダーを
+                    #    内部ランク j の降順にソートし、C_assign_list の先頭から順に
+                    #    1 対 1 で割り当てる（j が大きいほど先に割り当て）
+                    assign_queue = sorted(
+                        [m for m in range(M) if f[m] == -1 and j_list[m] > n]
+                        + rescued_subleaders,
                         key=lambda m: j_list[m],
                         reverse=True,
                     )
-                    for idx, m in enumerate(unassigned_followers):
+                    for idx, m in enumerate(assign_queue):
                         if idx < len(C_assign_list):
                             f[m] = C_assign_list[idx]
+                            if j_list[m] <= n:
+                                # 救済パスが実際に発動した回数を記録する
+                                self.hde_fix4a_rescue_count += 1
 
                 # 未割当が残る場合は次フェーズに進め、実験側で success=False として扱う。
 

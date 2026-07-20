@@ -91,6 +91,14 @@ class Izumi2026CommunicationMixin:
         """
         AssignAndUpdate の割当部分: プレイヤー j に arm を割り当てて返す。
 
+        注記（最終仕様との関係）:
+            本ヘルパーは旧仕様（Huang 2022 型の idx = M_active - j による個別割当）の
+            名残であり、現在はどの呼び出し元からも使われていない。
+            最終仕様（supplementary Algorithm 10 AssignAndUpdate; FIX-3/FIX-4(a)）では、
+            相開始時点の M' を固定した一括計算と、チャネル棄却済みサブリーダーの
+            フォロワー列への合流を algorithm4_hierarchical_distributed_exploration.py 内で
+            直接実装している。参照用として残す（削除しない）。
+
         Supplemental Pseudocode の AssignAndUpdate に従う:
             C_assign = C_accept - G（good arms を通信チャンネルとして除外）
             rank が高い player（j が大きい）から C_assign の先頭を割り当てる

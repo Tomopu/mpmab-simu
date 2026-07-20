@@ -8,6 +8,7 @@ ajci2026_paper/
 outputs/results/*.csv
 outputs/figures/*.png
 outputs/runs/
+outputs/runs_extra/
 !outputs/
 !outputs/README.md
 !outputs/results/

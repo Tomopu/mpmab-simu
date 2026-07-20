@@ -6,7 +6,7 @@ from simulator.core.runner import Runner
 
 
 class Huang2022VirtualMusicalChairsMixin:
-    """Algorithm 2: VirtualMusicalChairs."""
+    """Algorithm 2: VirtualMusicalChairs の処理を提供する補助クラス。"""
 
     def virtual_musical_chairs(self, runner: Runner, k_tilde: int, tau: int) -> List[int]:
         """
@@ -63,7 +63,7 @@ class Huang2022VirtualMusicalChairsMixin:
 
             result = runner.step(actions)
 
-            # 報酬チェック: k_tilde を選んで r > 0 → collision なし → rank 確定
+            # 報酬チェック: k_tilde を選んで r > 0 → 衝突なし → rank 確定
             for m in range(M):
                 if (t - 1) % K == current_slot[m]:
                     if result.rewards[m] > 0 and s_list[m] == -1:

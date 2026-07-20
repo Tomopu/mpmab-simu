@@ -1,4 +1,4 @@
-"""HomogeneousHuang2022 package."""
+"""HomogeneousHuang2022 パッケージ。"""
 
 from simulator.algorithms.homogeneous.huang2022.algorithm import HomogeneousHuang2022
 

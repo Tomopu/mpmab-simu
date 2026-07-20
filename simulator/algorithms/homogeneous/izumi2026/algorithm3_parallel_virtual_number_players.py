@@ -7,7 +7,7 @@ from simulator.core.runner import Runner
 
 
 class Izumi2026ParallelVirtualNumberPlayersMixin:
-    """Algorithm 3: ParallelVirtualNumberPlayers."""
+    """Algorithm 3: ParallelVirtualNumberPlayers の処理を提供する補助クラス。"""
 
     def parallel_virtual_number_players(
         self,
@@ -74,7 +74,7 @@ class Izumi2026ParallelVirtualNumberPlayersMixin:
                     # 論文の 1-based 仮想時刻 v
                     v = h_0 * n + i0 + 1
                     if v > 2 * K:
-                        # v が 2K を超えたら skip
+                        # v が 2K を超えたらスキップ
                         ell[m][i0] = -1
                         continue
                     if v > 2 * s_1based:
@@ -93,7 +93,7 @@ class Izumi2026ParallelVirtualNumberPlayersMixin:
 
                 # 各プレイヤーのアクション決定
                 # arm i0 がスロット k_0 にマップされるか確認する
-                # 条件（0-based）: ell[m][i0] != -1 AND (ell[m][i0] + i0) % K == k_0
+                # 条件（0-based）: ell[m][i0] != -1 かつ (ell[m][i0] + i0) % K == k_0
                 actions_base = []
                 matched_i0_per_player = [-1] * M
 
@@ -116,7 +116,7 @@ class Izumi2026ParallelVirtualNumberPlayersMixin:
                         if matched_i0_per_player[m] >= 0:
                             R_sum[m] += result.rewards[m]
 
-                # 3. τ 回後: R == 0 なら collision → M_hat, j を更新する
+                # 3. τ 回後: R == 0 なら衝突 → M_hat, j を更新する
                 for m in range(M):
                     if matched_i0_per_player[m] >= 0 and R_sum[m] == 0:
                         M_hat[m] += 1

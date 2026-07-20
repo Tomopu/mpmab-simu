@@ -9,7 +9,7 @@
 1. `docs/README.md`
 2. `docs/20260510_implementation_and_experiments.md`
 3. `docs/pseudocode/20260510_huang2022_pseudocode.md`
-4. `docs/pseudocode/20260510_izumi2026_pseudocode.md`
+4. `docs/pseudocode/20260510_izumi2026_homogeneous_pseudocode.md`
 
 heterogeneous 版に着手する場合のみ、以下も読む。
 

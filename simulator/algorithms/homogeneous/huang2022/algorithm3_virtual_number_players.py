@@ -6,7 +6,7 @@ from simulator.core.runner import Runner
 
 
 class Huang2022VirtualNumberPlayersMixin:
-    """Algorithm 3: VirtualNumberPlayers."""
+    """Algorithm 3: VirtualNumberPlayers の処理を提供する補助クラス。"""
 
     def virtual_number_players(
         self, runner: Runner, k_tilde: int, s_list: List[int], tau: int
@@ -69,7 +69,7 @@ class Huang2022VirtualNumberPlayersMixin:
                         if ell[m] == k_virtual:
                             R_sum[m] += result.rewards[m]
 
-                # τ 回終了後: R==0 なら collision → M_hat +1、n<=2s なら j +1
+                # τ 回終了後: R==0 なら衝突 → M_hat +1、n<=2s なら j +1
                 for m in range(M):
                     if ell[m] == k_virtual:
                         if R_sum[m] == 0:

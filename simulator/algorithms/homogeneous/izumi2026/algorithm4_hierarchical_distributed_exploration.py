@@ -10,7 +10,7 @@ from simulator.core.runner import Runner
 
 
 class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMixin):
-    """Algorithm 4: HierarchicalDistributedExploration."""
+    """Algorithm 4: HierarchicalDistributedExploration の処理を提供する補助クラス。"""
 
     def hierarchical_distributed_exploration(
         self,
@@ -90,7 +90,7 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             if Ka == 0:
                 break
 
-            # ---- sub-phase 1: sequential hopping で探索 ----
+            # ---- サブフェーズ 1: sequential hopping で探索 ----
             # 論文: for t=1..|K|*2^p*ceil(ln(1/delta))
             T_explore = Ka * (2**p) * _ceil(_ln(1.0 / delta))
 
@@ -105,7 +105,7 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                         # 割当済み: 割当腕を引き続ける
                         actions.append(f[m])
                     else:
-                        # sequential hopping: pos を +1 して次の active arm
+                        # sequential hopping: pos を +1 して次の active arm へ進む
                         pos[m] = (pos[m] + 1) % Ka
                         actions.append(active_arms[pos[m]])
                 result = runner.step(actions)
@@ -116,7 +116,7 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                         v_cnt[m][a] += 1
                         E[m][a] = R[m][a] / v_cnt[m][a]
 
-            # ---- sub-phase 2: 階層的通信（簡略実装） ----
+            # ---- サブフェーズ 2: 階層的通信（簡略実装） ----
             # Q: メッセージ長（論文: Q = ceil(p/2 + 3)）
             Q = _ceil(p / 2.0 + 3)
 
@@ -168,9 +168,9 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             # downlink メッセージサイズ: 2（サイズ情報）+ |C_accept| + |C_reject|
             Q0 = _ceil(math.log2(max(2, Ka)))
             n_int_msgs = 2 + len(C_accept) + len(C_reject)
-            # Sub-Leader への downlink
+            # Sub-Leader への下りリンク
             comm_downlink_sub = n_subleaders * n_int_msgs * Q0 * tau
-            # Follower への downlink（Sub-Leader 経由）
+            # Follower への下りリンク（Sub-Leader 経由）
             comm_downlink_follower = max_followers_per_group * n_int_msgs * Q0 * tau
             self._consume_comm_steps(runner, comm_downlink_sub + comm_downlink_follower, dummy)
 
@@ -226,12 +226,12 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                         if idx < len(C_assign_list):
                             f[m] = C_assign_list[idx]
 
-                # 未割当が残る場合は次 phase に進め、実験側で success=False として扱う。
+                # 未割当が残る場合は次フェーズに進め、実験側で success=False として扱う。
 
                 # active_arms と M0 をグローバルに更新する
-                # 実際に割り当てた腕と rejected arm だけを除外する。
-                # C_accept を全て除外すると、割当されなかった accepted arm まで消えて
-                # M0 と未割当 player 数がずれる。
+                # 実際に割り当てた腕と reject された腕だけを除外する。
+                # C_accept を全て除外すると、割当されなかった accept 済みの腕まで消えて
+                # M0 と未割当プレイヤー数がずれる。
                 assigned_after = set(a for a in f if a >= 0)
                 assigned_this_round = assigned_after - assigned_before
                 remove_set = assigned_this_round | set(C_reject)

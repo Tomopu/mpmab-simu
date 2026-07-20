@@ -8,7 +8,7 @@ from simulator.core.runner import Runner
 
 
 class Izumi2026CommunicationMixin:
-    """Simplified communication and assignment helpers."""
+    """通信と割当の簡略化ヘルパー。"""
 
     def _consume_comm_steps(self, runner: Runner, n_steps: int, dummy_arm: int) -> None:
         """

@@ -6,56 +6,79 @@ no-sensing 設定（collision を観測できない）の MPMAB アルゴリズ�
 
 ## 実装状況
 
-- **Step 1〜3 実装済み**: `BernoulliMPMABEnv`、`Runner`/`Trace`、`HomogeneousHuang2022`（Huang et al., 2022）
-- **Step 4 実装済み**: `HomogeneousMultiChannelIzumi2026`（Izumi et al., 2026）
-- **Step 5〜6 実装済み**: metrics、比較実験 CSV 出力、グラフ生成、pytest
-- 注意: forced-collision bit 通信はまだ完全再現ではなく、通信結果の直接集約 + 通信時間コストの簡略実装。
+### Homogeneous（実装済み）
+- **Step 1〜3**: `BernoulliMPMABEnv`、`Runner`/`Trace`、`HomogeneousHuang2022`（Huang et al., 2022）
+- **Step 4**: `HomogeneousMultiChannelIzumi2026`（Izumi et al., 2026）
+- **Step 5〜6**: metrics、比較実験 CSV 出力、グラフ生成、pytest
+- 注意: forced-collision bit 通信は通信結果の直接集約 + 通信時間コストの簡略実装。
+
+### Heterogeneous（実装済み）
+- **`HeterogeneousMPMABEnv`**: player-arm 報酬行列 `means[m][k]`、collision sensing、最大重み二部マッチング（Hungarian 法）による `optimal_total_reward` 計算。
+- **`HeterogeneousRunner`**: `HeterogeneousMPMABEnv` 用の同期 Runner。collision flag を意思決定に使える。
+- **`HeterogeneousShiBeacon2021`** (Model 3): Shi et al. (2021) BEACON の実装。
+  - Wang et al. (2020) Orthogonalization + Rank Assignment（初期化）
+  - BEACON Leader/Follower エポックループ（通信 + 探索）
+  - forced collision ビット伝送プロトコル（Send/Receive）を 1 bit = 1 ステップで実際にシミュレート
+  - 最大重み二部マッチング Oracle
+- **`HeterogeneousMultiChannelIzumi2026`** (Model 4): Izumi et al. (2026) ParallelBEACON の実装。
+  - 初期化フェーズ: FindMultipleGoodArms + ParallelVirtualMusicalChairs + ParallelVirtualNumberPlayers（Izumi 2026 homogeneous 版と共用）
+  - 学習フェーズ: ParallelBEACON（grand leader / sub-leader / follower 階層グループ通信 + Oracle 割当 + 探索）
+  - 通信コストは dummy ステップで消費する簡略実装
+- **`compute_hetero_metrics`**: Heterogeneous 向け評価指標（最適マッチング比較、フェーズ別通信コスト等）
+- **`compare_heterogeneous.py`**: BEACON vs ParallelBEACON 比較実験 CLI（CSV / PNG 出力）
 
 ## ディレクトリ構造
 
 ```
 mpmab-simu/
-├── simulator/          # シミュレーター本体
-│   ├── envs/           # 環境（問題設定）
-│   ├── core/           # 実行エンジン・履歴管理
-│   ├── algorithms/     # 論文単位のアルゴリズム実装
-│   │   └── homogeneous/
-│   │       ├── huang2022/
-│   │       │   ├── algorithm.py       # Huang 2022 のクラス本体・run()
-│   │       │   ├── algorithm1_find_good_arm.py
-│   │       │   ├── algorithm2_virtual_musical_chairs.py
-│   │       │   ├── algorithm3_virtual_number_players.py
-│   │       │   ├── algorithm4_distributed_exploration.py
-│   │       │   ├── communication.py   # 簡略通信・割当 helper
-│   │       │   └── results.py         # PlayerState への変換
-│   │       ├── izumi2026/
-│   │       │   ├── algorithm.py       # Izumi 2026 のクラス本体・run()
-│   │       │   ├── algorithm1_find_multiple_good_arms.py
-│   │       │   ├── algorithm2_parallel_virtual_musical_chairs.py
-│   │       │   ├── algorithm3_parallel_virtual_number_players.py
-│   │       │   ├── algorithm4_hierarchical_distributed_exploration.py
-│   │       │   ├── communication.py   # 簡略通信・割当 helper
-│   │       │   └── results.py         # PlayerStateIzumi への変換
-│   │       ├── states.py
-│   │       └── math_helpers.py
-│   ├── utils/          # 評価指標・可視化
-│   ├── experiments/    # 比較実験
-│   │   ├── compare_homogeneous.py     # CLI
-│   │   ├── configs.py                 # preset・CLI 上書き設定
-│   │   ├── run_homogeneous.py         # trial 実行・retry・集計行生成
-│   │   └── io.py                      # 出力先作成・設定保存・集計表示
-│   └── main.py         # sanity check エントリーポイント
-├── tests/              # pytest テスト
+├── simulator/
+│   ├── envs/
+│   │   ├── bernoulli_mpmab.py          # Homogeneous 環境
+│   │   └── heterogeneous_mpmab.py      # Heterogeneous 環境（player-arm 報酬行列）
+│   ├── core/
+│   ├── algorithms/
+│   │   ├── homogeneous/
+│   │   │   ├── huang2022/              # Huang 2022（no-sensing）
+│   │   │   ├── izumi2026/              # Izumi 2026（multi-channel, no-sensing）
+│   │   │   ├── states.py
+│   │   │   └── math_helpers.py
+│   │   └── heterogeneous/
+│   │       ├── shi2021/
+│   │       │   ├── algorithm.py                     # BEACON クラス本体・run()
+│   │       │   ├── runner_hetero.py                 # HeterogeneousRunner
+│   │       │   ├── algorithm1_orthogonalization.py  # Orthogonalization
+│   │       │   ├── algorithm2_rank_assignment.py    # Rank Assignment
+│   │       │   ├── algorithm3_initial_sampling.py   # Initial Sampling
+│   │       │   ├── algorithm4_beacon_epoch.py       # エポックループ（通信+探索）
+│   │       │   ├── communication.py                 # Send/Receive ビット伝送
+│   │       │   ├── oracle.py                        # Matching Oracle（Hungarian 法）
+│   │       │   ├── states.py
+│   │       │   └── results.py
+│   │       └── izumi2026/
+│   │           ├── algorithm.py                     # ParallelBEACON クラス本体・run()
+│   │           ├── algorithm1_select_collision_sensing_channels.py
+│   │           ├── algorithm2_parallel_virtual_musical_chairs_collision_sensing.py
+│   │           ├── algorithm3_parallel_virtual_number_players_collision_sensing.py
+│   │           ├── algorithm4_parallel_beacon_initial_sampling.py
+│   │           ├── algorithm5_parallel_beacon_epoch.py
+│   │           ├── helpers.py
+│   │           ├── states.py
+│   │           └── results.py
+│   ├── utils/
+│   ├── experiments/
+│   └── main.py
+├── tests/
 │   ├── envs/
 │   ├── algorithms/
+│   │   ├── homogeneous/
+│   │   └── heterogeneous/
+│   │       ├── shi2021/                # 環境・初期化・エンドツーエンドテスト（BEACON）
+│   │       └── izumi2026/              # ParallelBEACON エンドツーエンドテスト
 │   └── invariants/
-├── docs/               # 設計資料・実装メモ・擬似コード
-├── papers/             # 参照論文・参考実装（中身は gitignore）
-├── outputs/            # 再生成可能な実験出力（gitignore）
-│   ├── runs/
-│   ├── results/
-│   └── figures/
-└── requirements.txt    # numpy, pandas, matplotlib, pytest
+├── docs/
+├── papers/
+├── outputs/
+└── requirements.txt
 ```
 
 ## クイックスタート
@@ -66,11 +89,61 @@ pip install -r requirements.txt
 # sanity check (K=5, M=2, T=50000)
 python -m simulator.main
 
-# テスト
+# テスト（homogeneous + heterogeneous）
 python -m pytest tests/ -v
 
-# 比較実験（CSV と PNG を生成）
+# 比較実験（Homogeneous: CSV と PNG を生成）
 python -m simulator.experiments.compare_homogeneous --experiment small --trials 20
+
+# 比較実験（Heterogeneous: BEACON vs ParallelBEACON）
+python -m simulator.experiments.compare_heterogeneous --experiment small --trials 10
+```
+
+### Heterogeneous ParallelBEACON の使い方（Izumi 2026, Model 4）
+
+```python
+from simulator.envs.heterogeneous_mpmab import HeterogeneousMPMABEnv
+from simulator.algorithms.heterogeneous.izumi2026 import HeterogeneousMultiChannelIzumi2026
+from simulator.algorithms.heterogeneous.shi2021.runner_hetero import HeterogeneousRunner
+from simulator.utils.metrics import compute_hetero_metrics
+
+means = [
+    [0.9, 0.1, 0.5, 0.3, 0.2],  # player 0
+    [0.1, 0.9, 0.3, 0.5, 0.2],  # player 1
+]
+K, M, n, T = 5, 2, 2, 500000
+
+env = HeterogeneousMPMABEnv(means, collision_sensing=True, seed=0)
+runner = HeterogeneousRunner(env, horizon=T)
+algo = HeterogeneousMultiChannelIzumi2026(K=K, M=M, n=n, delta=1e-3, seed=0)
+result = algo.run(runner)
+
+metrics = compute_hetero_metrics(runner.trace, result["player_states"], means, M)
+print(f"cumulative_regret={metrics['cumulative_regret']:.1f}")
+for ps in result["player_states"]:
+    print(f"j={ps.internal_rank_j}, arm={ps.assigned_arm}, group={ps.group}")
+```
+
+### Heterogeneous BEACON の使い方
+
+```python
+from simulator.envs.heterogeneous_mpmab import HeterogeneousMPMABEnv
+from simulator.algorithms.heterogeneous.shi2021 import HeterogeneousShiBeacon2021, HeterogeneousRunner
+
+# player-arm 報酬行列（means[m][k] = player m が arm k を引いたときの期待報酬）
+means = [
+    [0.9, 0.1, 0.5, 0.3],  # player 0
+    [0.1, 0.9, 0.3, 0.5],  # player 1
+]
+K, M, T = 4, 2, 200000
+
+env = HeterogeneousMPMABEnv(means, collision_sensing=True, seed=0)
+runner = HeterogeneousRunner(env, horizon=T)
+algo = HeterogeneousShiBeacon2021(K=K, M=M, seed=0)
+result = algo.run(runner)
+
+for ps in result["player_states"]:
+    print(f"rank={ps.rank}, arm={ps.assigned_arm}, M_hat={ps.M_hat}")
 ```
 
 ## 設計方針

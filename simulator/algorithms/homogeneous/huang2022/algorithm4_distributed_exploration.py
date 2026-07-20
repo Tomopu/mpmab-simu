@@ -10,7 +10,7 @@ from simulator.core.runner import Runner
 
 
 class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
-    """Algorithm 4: DistributedExploration."""
+    """Algorithm 4: DistributedExploration の処理を提供する補助クラス。"""
 
     def distributed_exploration(
         self,
@@ -78,7 +78,7 @@ class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
             if Ka == 0:
                 break
 
-            # ---- sub-phase 1: sequential hopping で探索 ----
+            # ---- サブフェーズ 1: sequential hopping で探索 ----
             # 論文: for t=1..|K|*2^p*ceil(ln(1/delta))
             T_explore = Ka * (2**p) * _ceil(_ln(1.0 / delta))
 
@@ -93,7 +93,7 @@ class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
                         # 割当済み: 割当腕を引き続ける
                         actions.append(f[m])
                     else:
-                        # sequential hopping: pos を +1 して次の active arm
+                        # sequential hopping: pos を +1 して次の active arm へ進む
                         pos[m] = (pos[m] + 1) % Ka
                         actions.append(active_arms[pos[m]])
 
@@ -106,7 +106,7 @@ class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
                         v[m][a] += 1
                         E[m][a] = R[m][a] / v[m][a]
 
-            # ---- sub-phase 2: 通信フェーズ（簡略実装） ----
+            # ---- サブフェーズ 2: 通信フェーズ（簡略実装） ----
             # Q: メッセージ長（ビット数）
             Q = _ceil(p / 2.0 + 3)
 

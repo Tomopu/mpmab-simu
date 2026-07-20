@@ -1,0 +1,1 @@
+"""heterogeneous MPMAB アルゴリズム。"""

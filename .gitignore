@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+ajci2026_paper/
+
 outputs/results/*.csv
 outputs/figures/*.png
 outputs/runs/
@@ -24,5 +26,7 @@ papers/(2021) Heterogeneous Multi-player Multi-armed Bandits Closing the Gap and
 !papers/(2021) Heterogeneous Multi-player Multi-armed Bandits Closing the Gap and Generalization/README.md
 papers/(2022) Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information/*
 !papers/(2022) Towards Optimal Algorithms for Multi-Player Bandits without Collision Sensing Information/README.md
+papers/(2024) A Survey on Multi-player Bandits/*
+!papers/(2024) A Survey on Multi-player Bandits/README.md
 papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/*
 !papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/README.md

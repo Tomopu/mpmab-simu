@@ -1,4 +1,4 @@
-"""Homogeneous MPMAB algorithms."""
+"""homogeneous MPMAB アルゴリズム。"""
 
 from simulator.algorithms.homogeneous.huang2022 import HomogeneousHuang2022
 from simulator.algorithms.homogeneous.izumi2026 import HomogeneousMultiChannelIzumi2026
@@ -10,4 +10,3 @@ __all__ = [
     "PlayerState",
     "PlayerStateIzumi",
 ]
-

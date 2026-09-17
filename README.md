@@ -9,6 +9,8 @@ no-sensing 設定（collision を観測できない）の MPMAB アルゴリズ�
 ### Homogeneous（実装済み）
 - **Step 1〜3**: `BernoulliMPMABEnv`、`Runner`/`Trace`、`HomogeneousHuang2022`（Huang et al., 2022）
 - **Step 4**: `HomogeneousMultiChannelIzumi2026`（Izumi et al., 2026）
+- **外部比較手法**: `HomogeneousRandomizedSelfishKLUCB`（Trinh and Combes, 2021, Randomized Selfish KL-UCB）。比較実験では trial 方向にベクトル化した `simulate_rskl_batch` を使う。
+- **arm の並びの入れ替え**: `shuffle_means` と比較実験の `--shuffle-arms` で、trial ごとに arm index と期待値の対応をランダムにできる。
 - **Step 5〜6**: metrics、比較実験 CSV 出力、グラフ生成、pytest
 - 注意: forced-collision bit 通信は通信結果の直接集約 + 通信時間コストの簡略実装。
 

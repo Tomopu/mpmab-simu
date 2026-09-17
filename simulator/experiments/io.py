@@ -75,6 +75,7 @@ def save_run_config(
             "n_values": config.n_values,
             "trials": config.trials,
             "seed_base": config.seed_base,
+            "shuffle_arms": config.shuffle_arms,
         }
     payload = {"config": config_dict, "args": vars(args)}
     (run_dir / "run_config.json").write_text(

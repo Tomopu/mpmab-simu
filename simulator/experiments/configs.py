@@ -23,6 +23,8 @@ class ExperimentConfig:
     n_values: List[int]
     trials: int
     seed_base: int = 20260510
+    # True なら trial ごとに arm の並び（index と期待値の対応）をランダムに入れ替える
+    shuffle_arms: bool = False
 
     @property
     def delta(self) -> float:
@@ -103,6 +105,7 @@ def build_config(args: argparse.Namespace) -> ExperimentConfig:
         n_values=n_values,
         trials=args.trials or base.trials,
         seed_base=base.seed_base,
+        shuffle_arms=bool(getattr(args, "shuffle_arms", False)),
     )
 
 

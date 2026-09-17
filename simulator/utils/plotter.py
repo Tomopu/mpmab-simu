@@ -37,11 +37,13 @@ _ALGORITHM_LABELS = {
     "izumi2026": "Izumi 2026",
     "shi2021_beacon": "Shi 2021 BEACON",
     "izumi2026_parallel_beacon": "Izumi 2026 ParallelBEACON",
+    "trinh2021_rskl": "Randomized Selfish KL-UCB",
 }
 
 _FIXED_STYLES: Dict[str, Dict] = {
     "huang2022": dict(color="#111111", linestyle="--", linewidth=2.5, zorder=5),
     "shi2021_beacon": dict(color="#111111", linestyle="--", linewidth=2.5, zorder=5),
+    "trinh2021_rskl": dict(color="#6b6b6b", linestyle=":", linewidth=2.5, zorder=5),
 }
 
 

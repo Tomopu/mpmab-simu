@@ -1,6 +1,7 @@
 from simulator.algorithms.homogeneous import (
     HomogeneousHuang2022,
     HomogeneousMultiChannelIzumi2026,
+    HomogeneousRandomizedSelfishKLUCB,
     PlayerState,
     PlayerStateIzumi,
 )
@@ -17,6 +18,7 @@ __all__ = [
     # Homogeneous
     "HomogeneousHuang2022",
     "HomogeneousMultiChannelIzumi2026",
+    "HomogeneousRandomizedSelfishKLUCB",
     "PlayerState",
     "PlayerStateIzumi",
     # Heterogeneous

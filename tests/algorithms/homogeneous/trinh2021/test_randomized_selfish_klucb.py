@@ -8,6 +8,7 @@ Randomized Selfish KL-UCB（Runner 版とバッチ版）のテスト。
 """
 
 import numpy as np
+import pytest
 
 from simulator.algorithms.homogeneous import HomogeneousRandomizedSelfishKLUCB
 from simulator.algorithms.homogeneous.trinh2021 import simulate_rskl_batch
@@ -57,7 +58,8 @@ def test_batch_result_does_not_depend_on_batch_or_block():
     assert together.collision_steps[1] == alone.collision_steps[0]
 
 
-def test_runner_version_orthogonalizes_two_players():
+@pytest.mark.parametrize("variant", ["paper", "authors_code"])
+def test_runner_version_orthogonalizes_two_players(variant):
     # Given: M = 2, K = 2, mu = (0.9, 0.1)。Selfish KL-UCB が衝突し続けやすい設定
     means = [0.9, 0.1]
     T = 5000
@@ -65,7 +67,7 @@ def test_runner_version_orthogonalizes_two_players():
     for seed in range(5):
         env = BernoulliMPMABEnv(means=means, num_players=2, seed=seed)
         runner = Runner(env=env, horizon=T)
-        algo = HomogeneousRandomizedSelfishKLUCB(K=2, M=2, seed=seed)
+        algo = HomogeneousRandomizedSelfishKLUCB(K=2, M=2, seed=seed, variant=variant)
 
         # When
         result = algo.run(runner)

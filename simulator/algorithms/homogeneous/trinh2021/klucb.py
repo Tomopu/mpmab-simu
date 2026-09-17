@@ -117,3 +117,55 @@ def klucb_bernoulli(
 
     out[active] = q
     return out
+
+
+# ---------------------------------------------------------------------------
+# 著者の公開実装（論文の実験で使われた版）に合わせた指数
+# ---------------------------------------------------------------------------
+# 著者のリポジトリ ctrnh/multi_player_multi_armed_bandit_algorithms の
+# algorithms/cklucb/cklucb.pyx（computeKLUCB）と algorithms/selfishucb.py は、論文の本文と次の点が違う。
+#   - 探索関数は log t0 + 3 log log t0（c = 3）。t0 はその時刻より 1 小さい 0 始まりの時刻
+#   - 指数は二分法で幅 1e-3 まで絞り、区間の中点を返す（最大 51 回）
+#   - KL ダイバージェンスの計算で p, q を [1e-7, 1 - 1e-7] に丸め、試行回数には 1e-7 を足して割る
+#   - 未試行の arm の指数は +inf（ここでは呼び出し側で扱う）
+_CODE_EPS = 1e-7
+_CODE_PRECISION = 1e-3
+_CODE_MAX_COUNT = 50
+_CODE_C = 3.0
+
+
+def klucb_bernoulli_authors_code(mu_hat: np.ndarray, counts: np.ndarray, t0: int) -> np.ndarray:
+    """
+    著者実装 computeKLUCB と同じ手順で KL-UCB 指数を計算する（未試行 arm の +inf は含まない）。
+
+    Args:
+        mu_hat: 経験平均（著者実装では successes / (1e-7 + pulls)）
+        counts: 試行回数
+        t0: 0 始まりの時刻（著者実装の self.t。1 始まりの時刻 t なら t - 1）
+
+    Returns:
+        mu_hat と同じ形の指数配列
+    """
+    mu = np.asarray(mu_hat, dtype=float)
+    n = np.asarray(counts, dtype=float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        # 1. d = (log t0 + 3 log log t0) / (1e-7 + N)。C の log と同じく log 0 = -inf、負の数の log は nan になる
+        d = (np.log(float(t0)) + _CODE_C * np.log(np.log(float(t0)))) / (_CODE_EPS + n)
+
+    # 2. KL の第 1 引数は丸めた経験平均（ループの中で変わらない）
+    x = np.clip(mu, _CODE_EPS, 1.0 - _CODE_EPS)
+    lo = mu.copy()
+    hi = np.ones_like(mu)
+    for _ in range(_CODE_MAX_COUNT + 1):
+        # 3. 幅が 1e-3 を超える要素だけ二分法を 1 回進める（要素ごとの while ループと同じ結果になる）
+        active = (hi - lo) > _CODE_PRECISION
+        if not np.any(active):
+            break
+        mid = 0.5 * (lo + hi)
+        y = np.clip(mid, _CODE_EPS, 1.0 - _CODE_EPS)
+        kl = x * np.log(x / y) + (1.0 - x) * np.log((1.0 - x) / (1.0 - y))
+        with np.errstate(invalid="ignore"):
+            too_far = kl > d  # d が nan なら False（C の比較と同じ）
+        hi = np.where(active & too_far, mid, hi)
+        lo = np.where(active & ~too_far, mid, lo)
+    return 0.5 * (lo + hi)

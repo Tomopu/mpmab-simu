@@ -40,3 +40,22 @@ end for
 - 未試行（`N = 0`）の arm は制約がないので指数 1。経験平均が 1 の arm も指数 1。
 - `t = 1` では `f(1) = 0` なので、試行済みの arm の指数は経験平均になる。
 - 衝突フラグは意思決定に使わない（no-sensing）。
+
+## 論文の本文と著者の公開実装の違い
+
+著者の公開実装（https://github.com/ctrnh/multi_player_multi_armed_bandit_algorithms 、論文の実験で使われた版）は、論文の本文と次の点が違う。
+そこで 2 つの版を用意し、比較実験では algorithm 名で選ぶ。
+
+| 項目 | 論文の本文（`variant="paper"`、`trinh2021_rskl`） | 著者の公開実装（`variant="authors_code"`、`trinh2021_rskl_c3`） |
+|---|---|---|
+| 探索関数 | `log t + c log log t`。本文に「実用上は通常 c = 0」とあるので c = 0 | `log t0 + 3 log log t0`（c = 3）。`t0 = t - 1` は 0 始まりの時刻 |
+| 指数の精度 | 厳密（Newton 法で 1e-12） | 二分法で幅 1e-3 まで絞り、区間の中点（`cklucb.pyx` の `computeKLUCB`） |
+| 経験平均 | 報酬和 / max(N, 1) | successes / (1e-7 + pulls) |
+| 未試行 arm の指数 | 1 | +inf（同点は一様ランダム）。実装では 1e6 を使い、正規乱数で 1 本を選ぶ（同じ分布） |
+| 乱数の大きさ | Z / t | 標準偏差 1/(self.t + 1) の正規乱数（1 始まりの t なら Z / t と同じ） |
+
+## 検証
+
+- 論文の式をスカラーで書き写したものと、ランダムな 3000 状態で行動が全件一致した。
+- 著者実装（`computeKLUCB` と `Selfishucb.run` の行動選択）を書き写したものと、ランダムな 3000 状態で行動が全件一致し、指数の差は最大 1.1e-16 だった。
+- `tests/algorithms/homogeneous/trinh2021/` に、指数の計算とバッチ版の指標のテストがある。

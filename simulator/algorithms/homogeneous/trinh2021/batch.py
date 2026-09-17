@@ -71,6 +71,7 @@ def simulate_rskl_batch(
     c: float = 0.0,
     block: int = 1024,
     record_actions: bool = False,
+    variant: str = "paper",
 ) -> RSKLBatchResult:
     """
     Randomized Selfish KL-UCB を複数 trial まとめて horizon T まで実行する。
@@ -84,6 +85,7 @@ def simulate_rskl_batch(
         c: 探索関数の log log t の係数（論文の実験に合わせて既定は 0）
         block: 乱数をまとめて生成するステップ数（結果には影響しない。速さとメモリだけに効く）
         record_actions: True なら全ステップの行動を返す（テスト用。T が大きいと重い）
+        variant: "paper"（論文の本文）または "authors_code"（著者の公開実装）。policy.select_actions を参照。
 
     Returns:
         RSKLBatchResult
@@ -134,7 +136,7 @@ def simulate_rskl_batch(
             t = block_start + s
             # 2. 各プレイヤーが自分の統計だけから行動を選ぶ（衝突フラグは使わない）
             actions, prev_index = select_actions(
-                counts, reward_sums, t, noise_block[s], prev_index=prev_index, c=c
+                counts, reward_sums, t, noise_block[s], prev_index=prev_index, c=c, variant=variant
             )
             # 3. 環境: arm ごとの選択人数から衝突を判定し、報酬を生成する
             chosen = actions[:, :, None] == arms  # (B, M, K)

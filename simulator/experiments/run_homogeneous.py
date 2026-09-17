@@ -13,8 +13,10 @@ from simulator.experiments.configs import ExperimentConfig
 from simulator.experiments.io import _run_with_retry, _sample_times, build_curve_rows
 from simulator.utils import compute_metrics
 
-# Randomized Selfish KL-UCB の algorithm 名（summary/curves の algorithm 列に入る）
-RSKL_ALGORITHM = "trinh2021_rskl"
+# Randomized Selfish KL-UCB の algorithm 名（summary/curves の algorithm 列に入る）と、使う版の対応
+#   trinh2021_rskl    : 論文の本文の定義（c = 0、指数は厳密に計算）
+#   trinh2021_rskl_c3 : 著者の公開実装と同じ計算（c = 3、指数は幅 1e-3 の二分法）
+RSKL_ALGORITHMS = {"trinh2021_rskl": "paper", "trinh2021_rskl_c3": "authors_code"}
 
 
 def trial_means(config: ExperimentConfig, seed: int) -> Tuple[List[float], List[int]]:
@@ -186,7 +188,7 @@ def _run_rskl_chunk(args: Tuple) -> Tuple[List[Dict[str, object]], List[Dict[str
 
     ProcessPoolExecutor から呼べるよう、引数は 1 つのタプルで受け取る。
     """
-    config, trials, seeds, means_list, orders, sample_points, block = args
+    config, algorithm, trials, seeds, means_list, orders, sample_points, block = args
     times = list(_sample_times(config.T, sample_points))
     result = simulate_rskl_batch(
         means_per_trial=means_list,
@@ -195,6 +197,7 @@ def _run_rskl_chunk(args: Tuple) -> Tuple[List[Dict[str, object]], List[Dict[str
         seeds=seeds,
         sample_times=times,
         block=block,
+        variant=RSKL_ALGORITHMS[algorithm],
     )
     summaries: List[Dict[str, object]] = []
     curves: List[Dict[str, object]] = []
@@ -217,7 +220,7 @@ def _run_rskl_chunk(args: Tuple) -> Tuple[List[Dict[str, object]], List[Dict[str
             "rank_assignment_success": None,
             "assignment_duplicate": None,
         }
-        row = build_summary_row(config, RSKL_ALGORITHM, 0, trial, seed, metrics)
+        row = build_summary_row(config, algorithm, 0, trial, seed, metrics)
         row["pseudo_regret"] = float(result.pseudo_regret[i])
         row["attempt"] = 0
         row["attempts_used"] = 1
@@ -227,7 +230,7 @@ def _run_rskl_chunk(args: Tuple) -> Tuple[List[Dict[str, object]], List[Dict[str
         for j, t in enumerate(times):
             curves.append(
                 {
-                    "algorithm": RSKL_ALGORITHM,
+                    "algorithm": algorithm,
                     "K": config.K,
                     "M": config.M,
                     "T": config.T,
@@ -251,12 +254,14 @@ def run_rskl_trials(
     batch_size: int = 25,
     workers: int = 1,
     block: int = 1024,
+    algorithm: str = "trinh2021_rskl",
 ) -> Tuple[List[Dict[str, object]], List[Dict[str, object]]]:
     """
     Randomized Selfish KL-UCB を config.trials 回実行する（trial をバッチにまとめ、必要なら並列に回す）。
 
     Args:
         config: 実験設定（shuffle_arms も反映する）
+        algorithm: RSKL_ALGORITHMS のキー（使う版を決める）
         sample_points: regret curve のサンプル点数
         batch_size: 1 プロセスでまとめて計算する trial 数
         workers: 並列に動かすプロセス数（1 なら逐次）
@@ -277,6 +282,7 @@ def run_rskl_trials(
         chunks.append(
             (
                 config,
+                algorithm,
                 trials[start:end],
                 seeds[start:end],
                 [m for m, _ in orders_means[start:end]],

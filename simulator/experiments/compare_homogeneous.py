@@ -25,7 +25,7 @@ import pandas as pd
 from simulator.experiments.configs import CONFIGS, build_config
 from simulator.experiments.io import create_run_dir, print_summary, save_run_config
 from simulator.experiments.run_homogeneous import (
-    RSKL_ALGORITHM,
+    RSKL_ALGORITHMS,
     run_rskl_trials,
     run_with_optional_retry,
     trial_means,
@@ -35,7 +35,7 @@ from simulator.utils import save_metric_bar, save_regret_curve
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # --algorithms で指定できるアルゴリズム名
-ALGORITHM_CHOICES = ("huang2022", "izumi2026", RSKL_ALGORITHM)
+ALGORITHM_CHOICES = ("huang2022", "izumi2026", *RSKL_ALGORITHMS)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -217,13 +217,16 @@ def main() -> None:
                 summary_rows.append(summary)
                 curve_rows.extend(curves)
 
-    if RSKL_ALGORITHM in algorithms:
+    for rskl_algorithm in RSKL_ALGORITHMS:
+        if rskl_algorithm not in algorithms:
+            continue
         # Randomized Selfish KL-UCB は horizon まで毎ステップ動くため、trial をまとめて numpy で計算する
         summary, curves = run_rskl_trials(
             config,
             sample_points=args.sample_points,
             batch_size=args.rskl_batch_size,
             workers=args.workers,
+            algorithm=rskl_algorithm,
         )
         summary_rows.extend(summary)
         curve_rows.extend(curves)

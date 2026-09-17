@@ -29,15 +29,19 @@ class HomogeneousRandomizedSelfishKLUCB(BaseAlgorithm):
         K: arm 数
         M: プレイヤー数
         seed: 行動選択の乱数 seed（batch.py と同じ系列を使う）
-        c: 探索関数 f(t) = log t + c log log t の係数（既定 0）
+        c: 探索関数 f(t) = log t + c log log t の係数（既定 0。variant="paper" のときだけ使う）
+        variant: "paper"（論文の本文）または "authors_code"（著者の公開実装）
     """
 
-    def __init__(self, K: int, M: int, seed: Optional[int] = None, c: float = 0.0) -> None:
+    def __init__(
+        self, K: int, M: int, seed: Optional[int] = None, c: float = 0.0, variant: str = "paper"
+    ) -> None:
         if K < 1 or M < 1 or M > K:
             raise ValueError("1 <= M <= K が必要。")
         self.K = K
         self.M = M
         self.c = c
+        self.variant = variant
         self._policy_rng, _ = trial_generators(0 if seed is None else seed)
 
     def run(self, runner: Runner) -> Dict[str, object]:
@@ -59,7 +63,9 @@ class HomogeneousRandomizedSelfishKLUCB(BaseAlgorithm):
         while True:
             t += 1
             noise = self._policy_rng.standard_normal((self.M, self.K))
-            actions, prev_index = select_actions(counts, reward_sums, t, noise, prev_index, self.c)
+            actions, prev_index = select_actions(
+                counts, reward_sums, t, noise, prev_index, self.c, self.variant
+            )
             try:
                 result = runner.step([int(a) for a in actions])
             except HorizonReached:

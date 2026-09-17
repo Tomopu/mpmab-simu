@@ -5,11 +5,18 @@ KL-UCB 指数（klucb_bernoulli）のテスト。
 - 高精度の二分法（スカラー版）と一致すること
 - 未試行・経験平均 1・f = 0 の特別な場合
 - 前ステップの指数を初期値に渡しても結果が変わらないこと
+- 著者実装版の指数が、著者の computeKLUCB と同じ手順のスカラー計算と一致すること
 """
+
+import math
 
 import numpy as np
 
-from simulator.algorithms.homogeneous.trinh2021.klucb import bernoulli_kl, klucb_bernoulli
+from simulator.algorithms.homogeneous.trinh2021.klucb import (
+    bernoulli_kl,
+    klucb_bernoulli,
+    klucb_bernoulli_authors_code,
+)
 
 
 def _reference_index(p: float, n: float, f: float) -> float:
@@ -71,3 +78,41 @@ def test_warm_start_does_not_change_result():
 
     # Then: 初期値の有無で結果は変わらない
     assert np.max(np.abs(warm - cold)) < 1e-10
+
+
+def _authors_code_scalar(mu: float, n: float, t0: int) -> float:
+    """著者実装 computeKLUCB（cklucb.pyx）の手順をスカラーで書いたもの（比較用）。"""
+    def c_log(v):
+        return -math.inf if v == 0 else (math.nan if v < 0 or math.isnan(v) else math.log(v))
+
+    def kl(x, y):
+        x = min(max(x, 1e-7), 1 - 1e-7)
+        y = min(max(y, 1e-7), 1 - 1e-7)
+        return x * math.log(x / y) + (1 - x) * math.log((1 - x) / (1 - y))
+
+    d = (c_log(t0) + 3 * c_log(c_log(t0))) / (1e-7 + n)
+    u, l, count = 1.0, mu, 0
+    while u - l > 1e-3 and count <= 50:
+        count += 1
+        m = (l + u) / 2
+        if (not math.isnan(d)) and kl(mu, m) > d:
+            u = m
+        else:
+            l = m
+    return (l + u) / 2
+
+
+def test_authors_code_index_matches_scalar_procedure():
+    # Given: ランダムな経験平均・試行回数と、log log t0 が負や未定義になる小さい時刻を含む時刻
+    rng = np.random.default_rng(2)
+    mu = rng.random(200)
+    mu[:10] = 0.0
+    mu[10:20] = 1.0
+    n = rng.integers(1, 3000, 200).astype(float)
+
+    for t0 in [0, 1, 2, 3, 10, 12345, 999_999]:
+        # When
+        got = klucb_bernoulli_authors_code(mu, n, t0)
+        # Then: 要素ごとの while ループと同じ値になる
+        expected = np.array([_authors_code_scalar(p, k, t0) for p, k in zip(mu, n)])
+        assert np.max(np.abs(got - expected)) < 1e-12

@@ -17,6 +17,8 @@ pytest によるユニットテストを置くディレクトリ。
 | `algorithms/homogeneous/huang2022/` | `HomogeneousHuang2022` の phase / full run | 8 |
 | `algorithms/homogeneous/izumi2026/` | `HomogeneousMultiChannelIzumi2026` の phase / full run | 17 |
 | `algorithms/homogeneous/test_initialization_invariants.py` | 論文再現に必要な初期化不変条件 | 2 |
+| `algorithms/homogeneous/trinh2021/` | KL-UCB 指数（論文の本文版・著者実装版）と Randomized Selfish KL-UCB（Runner 版・バッチ版） | 8 |
+| `envs/test_arm_order.py` | arm の並びの入れ替え（`shuffle_means`・`trial_means`） | 2 |
 
 ### 実行方法
 

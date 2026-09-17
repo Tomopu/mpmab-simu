@@ -192,6 +192,21 @@ python -m simulator.experiments.compare_homogeneous --experiment small \
 
 ---
 
+### arm の並びのランダム化と Randomized Selfish KL-UCB
+
+```bash
+# trial ごとに arm の並びをランダムにして、3 手法を比較する（Randomized Selfish KL-UCB は 8 プロセスで並列実行）
+python -m simulator.experiments.compare_homogeneous --experiment tradeoff --trials 100 \
+    --shuffle-arms --algorithms huang2022,izumi2026,trinh2021_rskl \
+    --rskl-batch-size 13 --workers 8 --name-suffix K20_M8_T1M_shuffled
+```
+
+- `--shuffle-arms`: trial の seed から arm の並びを決める（`simulator/envs/arm_order.py`）。同じ trial の全アルゴリズムで同じ並びを使い、並びは summary の `arm_order` 列に保存する。`arm_order` の k 番目は、新しい arm k に置いた元の arm の番号。
+- `--algorithms`: `huang2022`、`izumi2026`、`trinh2021_rskl`、`trinh2021_rskl_c3` から選ぶ（既定は前 2 つ）。`trinh2021_rskl` は論文の本文の定義（c = 0）、`trinh2021_rskl_c3` は著者の公開実装と同じ計算（c = 3、指数は幅 1e-3 の二分法）。違いは `docs/pseudocode/20260917_trinh2021_randomized_selfish_klucb_pseudocode.md` を参照。
+- `--rskl-batch-size`、`--workers`: Randomized Selfish KL-UCB は割当を確定しないので horizon まで毎ステップ全 arm の KL-UCB 指数を計算する。trial をこの数ずつまとめて numpy で計算し、`--workers` 個のプロセスで並列に回す。各 trial の乱数は seed から作る独立な系列なので、まとめ方を変えても結果は同じ。
+- Randomized Selfish KL-UCB の行は `n=0`、フェーズ所要時間は 0 とする。`final_assignment_success` は「最終ステップで全員が相異なる top-M arm を選んでいたか」の参考値。期待値ベースの累積 regret を `pseudo_regret` 列にも保存する。
+- 注意: Huang 2022 と Izumi 2026 は割当が確定した時点で trial を打ち切り、その後の regret を期待値 0 とみなす。Randomized Selfish KL-UCB は horizon まで実際に動かす。
+
 ### 出力ファイル構成
 
 実験ごとに `outputs/runs/YYYYMMDD_HHMMSS_<name>/` が作られる。

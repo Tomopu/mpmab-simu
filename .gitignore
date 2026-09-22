@@ -31,3 +31,6 @@ papers/(2024) A Survey on Multi-player Bandits/*
 !papers/(2024) A Survey on Multi-player Bandits/README.md
 papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/*
 !papers/(2026) Multi-Channel Communication Algorithm for Multi-Player Multi-Armed Bandits without Collision Sensing/README.md
+
+# camera ready 用の実験出力（サイズが大きいので追跡しない）
+outputs/camera_ready_*/

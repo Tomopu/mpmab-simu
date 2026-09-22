@@ -33,6 +33,9 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             2. 通信時間コストは最も重いグループの cost で近似し、
                 ダミーアクションで runner.step() を消費する。
             3. accept/reject は Grand Leader のみが決定する。
+            4. フォロワー段は未割当のフォロワーだけが送る（Huang 2022 と同じ）。
+                サブリーダー段は、割当済みかどうかによらず毎フェーズ n-1 本分を
+                課金する（論文どおり、全員の割当が確定するまで通信役を続ける）。
 
         論文の変数対応:
             論文 j=1 が Grand Leader → 実装 j_list[m]==1 の m
@@ -94,6 +97,8 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
         self.hde_fix5_r_neq_j_count = 0
         self.hde_fix4a_rescue_count = 0
         self.hde_channel_rejected_count = 0
+        #   hde_comm_log: フェーズごとの通信時間の内訳（サブリーダー段の課金本数など）
+        self.hde_comm_log: List[Dict[str, int]] = []
 
         # good arms 以外のダミー腕（通信フェーズのダミーアクション）
         non_good_arms = [a for a in range(K) if a not in good_set]
@@ -173,8 +178,14 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             comm_uplink_follower = max_followers_per_group * Ka * Q * tau
 
             # ---- ComSubLeader: Sub-Leader → Grand Leader へのアップリンク ----
-            # n-1 個の Sub-Leader が Grand Leader に送る（G[1] を介して順番に送信）
-            n_subleaders = sum(1 for m in range(M) if 2 <= j_list[m] <= n and f[m] == -1)
+            # n-1 個の Sub-Leader が Grand Leader に送る（G[1] を介して順番に送信）。
+            # 論文（補足 B の AssignAndUpdate の説明、補足 D Lemma 4 の証明 (3)）では、
+            # 割当済みのサブリーダーも全員の割当が確定するまで通信役（集約・中継）を
+            # 続けるので、この段は毎フェーズ (n-1) 本分の時間がかかる。
+            # 2026-09-22 より前の実装は未割当のサブリーダーだけを数えていたため、
+            # n>=2 で通信時間を過小に課金していた（docs/20260922_hde_subleader_relay_cost_fix.md）。
+            n_subleaders = max(0, n - 1)
+            n_subleaders_unassigned = sum(1 for m in range(M) if 2 <= j_list[m] <= n and f[m] == -1)
             comm_uplink_sub = n_subleaders * Ka * Q * tau
 
             # 通信コストを Trace に記録するためダミー step を消費する
@@ -222,6 +233,24 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             # Follower への下りリンク（Sub-Leader 経由）
             comm_downlink_follower = max_followers_per_group * n_int_msgs * Q0 * tau
             self._consume_comm_steps(runner, comm_downlink_sub + comm_downlink_follower, dummy)
+
+            # 検証用にフェーズごとの通信の内訳を残す（決定的な集計のみで乱数は消費しない）
+            self.hde_comm_log.append(
+                {
+                    "phase": p,
+                    "active_arms": Ka,
+                    "Q": Q,
+                    "Q0": Q0,
+                    "tau": tau,
+                    "n_subleaders_charged": n_subleaders,
+                    "n_subleaders_unassigned": n_subleaders_unassigned,
+                    "max_followers_per_group": max_followers_per_group,
+                    "uplink_follower": comm_uplink_follower,
+                    "uplink_sub": comm_uplink_sub,
+                    "downlink_sub": comm_downlink_sub,
+                    "downlink_follower": comm_downlink_follower,
+                }
+            )
 
             # 3. 各プレイヤーが AssignAndUpdate を実行して割当を決定する
             assigned_before = set(a for a in f if a >= 0)

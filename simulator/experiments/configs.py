@@ -25,6 +25,8 @@ class ExperimentConfig:
     seed_base: int = 20260510
     # True なら trial ごとに arm の並び（index と期待値の対応）をランダムに入れ替える
     shuffle_arms: bool = False
+    # True なら論文の仮定 (A1) の範囲外の n（n > M または 2n > K）も実行する
+    allow_out_of_range_n: bool = False
 
     @property
     def delta(self) -> float:
@@ -92,6 +94,13 @@ def build_config(args: argparse.Namespace) -> ExperimentConfig:
     n_values = [n for n in n_values if 1 <= n <= max_n]
     if not n_values:
         raise ValueError(f"有効な n がない。Izumi 2026 実装では 1 <= n < K-M が必要。K-M={K - M}")
+    allow_out_of_range_n = bool(getattr(args, "allow_out_of_range_n", False))
+    out_of_range = [n for n in n_values if n > M or 2 * n > K]
+    if out_of_range and not allow_out_of_range_n:
+        raise ValueError(
+            f"n={out_of_range} は論文の仮定 (A1) の範囲外（n <= M かつ 2n <= K が必要）。"
+            "実行するには --allow-out-of-range-n を付ける。結果は n_within_assumptions=0 で区別される。"
+        )
 
     suffix = args.name_suffix or f"K{K}_M{M}_T{T}"
     name = f"{base.name}_{suffix}" if suffix else base.name
@@ -106,6 +115,7 @@ def build_config(args: argparse.Namespace) -> ExperimentConfig:
         trials=args.trials or base.trials,
         seed_base=base.seed_base,
         shuffle_arms=bool(getattr(args, "shuffle_arms", False)),
+        allow_out_of_range_n=allow_out_of_range_n,
     )
 
 

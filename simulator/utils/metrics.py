@@ -19,9 +19,15 @@ def compute_metrics(
     player_states: Optional[List[Any]] = None,
     means: Optional[List[float]] = None,
     M: Optional[int] = None,
+    horizon: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Trace と player_states から評価指標を計算する。
+
+    割当が決まった時点で実行を止めるアルゴリズムのために、horizon を渡すと
+    「残り時間 × 固定割当の期待損失」を expected_tail_regret として cumulative_regret に
+    加える（正しい割当なら 0 なので値は変わらない。重複した腕は衝突して報酬 0、
+    未割当のプレイヤーは報酬 0 として数える）。
 
     Args:
         trace: シミュレーション全体の Trace
@@ -43,8 +49,13 @@ def compute_metrics(
           - exploration_duration: DistributedExploration の所要ステップ数
           - rank_assignment_success: 全プレイヤーに重複なく rank が割り当てられたか（bool）
           - player_count_success: 全プレイヤーの M_hat が真の M と一致するか（bool）
-          - final_assignment_success: 全プレイヤーの assigned_arm が top-M arm に含まれるか（bool）
+          - final_assignment_success: 全プレイヤーが重複なく top-M arm に割り当てられ、
+              Good Arm の合意にも失敗していないか（bool）
           - assignment_duplicate: 割当腕に重複があるか（bool）
+          - good_arm_agreement: 全プレイヤーの Good Arm（集合）が一致したか（bool、情報がなければ None）
+          - regret_at_stop: 実行を止めた時点までの累積 regret（observed reward ベース）
+          - expected_tail_regret: 残り時間の固定割当の期待損失（horizon を渡した場合）
+          - tail_loss_per_step: 残り時間の 1 ステップあたり期待損失
     """
     phase_durations = trace.phase_durations
 
@@ -107,6 +118,10 @@ def compute_metrics(
         "player_count_success": None,
         "final_assignment_success": None,
         "assignment_duplicate": None,
+        "good_arm_agreement": None,
+        "regret_at_stop": cumulative_regret,
+        "expected_tail_regret": 0.0,
+        "tail_loss_per_step": 0.0,
     }
 
     # player_states がある場合はさらに詳細な指標を計算
@@ -131,15 +146,43 @@ def compute_metrics(
         assignment_duplicate = len(assigned) != len(set(assigned))
         metrics["assignment_duplicate"] = assignment_duplicate
 
-        # top-M arm に全員が割り当てられているか確認
+        # Good Arm の合意: 全プレイヤーの Good Arm（集合）が一致するか
+        good_arm_agreement: Optional[bool] = None
+        if hasattr(player_states[0], "good_arms"):
+            sets = [sorted(ps.good_arms) for ps in player_states]
+            if all(sets):
+                good_arm_agreement = all(g == sets[0] for g in sets)
+        elif hasattr(player_states[0], "good_arm"):
+            values = [ps.good_arm for ps in player_states]
+            if all(v >= 0 for v in values):
+                good_arm_agreement = all(v == values[0] for v in values)
+        metrics["good_arm_agreement"] = good_arm_agreement
+
+        # top-M arm に全員が重複なく割り当てられているか確認
         if means is not None:
             top_m_arms = set(
                 sorted(range(len(means)), key=lambda k: means[k], reverse=True)[:num_players]
             )
             final_assignment_success = (
-                len(assigned) == num_players and all(a in top_m_arms for a in assigned)
+                len(assigned) == num_players
+                and not assignment_duplicate
+                and all(a in top_m_arms for a in assigned)
+                and good_arm_agreement is not False
             )
             metrics["final_assignment_success"] = final_assignment_success
+
+            # 割当後に実行を止めた場合の残り時間の期待損失
+            if horizon is not None and total_steps < horizon:
+                counts: Dict[int, int] = {}
+                for a in assigned:
+                    counts[a] = counts.get(a, 0) + 1
+                fixed_reward = sum(means[a] for a in assigned if counts[a] == 1)
+                optimal_reward = sum(sorted(means, reverse=True)[:num_players])
+                tail_loss_per_step = max(0.0, optimal_reward - fixed_reward)
+                expected_tail = (horizon - total_steps) * tail_loss_per_step
+                metrics["tail_loss_per_step"] = tail_loss_per_step
+                metrics["expected_tail_regret"] = expected_tail
+                metrics["cumulative_regret"] = cumulative_regret + expected_tail
 
     return metrics
 

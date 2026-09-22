@@ -96,5 +96,7 @@ class Huang2022FindGoodArmMixin:
                     break
 
         # 同期設計上、全員が同じ k_tilde を得る（Lemma 1 の保証）
-        # 代表として player 0 の値を返す
+        # 代表として player 0 の値を返す。合意の検証用に全員の値も残す。
+        self.fga_player_k_tilde = list(k_tilde_list)
+        self.fga_player_mu_tilde = list(mu_tilde_list)
         return k_tilde_list[0], mu_tilde_list[0]

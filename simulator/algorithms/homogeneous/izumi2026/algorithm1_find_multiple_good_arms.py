@@ -135,4 +135,8 @@ class Izumi2026FindMultipleGoodArmsMixin:
             confirmed_p0 = set(G_list[0])
             active_arms = [a for a in active_arms if a not in confirmed_p0]
 
+        # 合意の検証用に、全プレイヤーの G と下界を残す（戻り値は従来どおり player 0 の値）。
+        # 不一致は評価側（compute_metrics の good_arm_agreement）で失敗として記録する。
+        self.fmga_player_good_arms = [list(g) for g in G_list]
+        self.fmga_player_mu_tilde = [dict(m) for m in mu_tilde_map]
         return G_list[0], mu_tilde_map[0]

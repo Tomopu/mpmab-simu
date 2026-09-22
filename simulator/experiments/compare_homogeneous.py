@@ -143,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="trial ごとに arm の並び（index と期待値の対応）をランダムに入れ替える。",
     )
     parser.add_argument(
+        "--allow-out-of-range-n",
+        action="store_true",
+        help="論文の仮定 (A1) の範囲外の n（n > M または 2n > K）も実行する。summary の n_within_assumptions=0 で区別される。",
+    )
+    parser.add_argument(
         "--rskl-batch-size",
         type=int,
         default=25,

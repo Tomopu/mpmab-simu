@@ -192,12 +192,20 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
             # 実際の bit 伝送は行わず、時間コストのみをシミュレートする（簡略化）
             self._consume_comm_steps(runner, comm_uplink_follower + comm_uplink_sub, dummy)
 
-            # 1. 全プレイヤーの推定値を Grand Leader が直接集約する（簡略化: 量子化なし）
+            # 1. 未割当プレイヤーの推定値を Grand Leader が直接集約する（簡略化: 量子化なし）。
+            #    論文の仕様（補足 B、補題 4 の証明 (2)(a)）どおり、集約統計は未割当プレイヤーの
+            #    標本だけから毎フェーズ作り直す。割当済みのプレイヤーの過去の標本は使わない
+            #    （2026-09-22 以前は割当済みの欄を残して合計していた。docs/20260923_hde_aggregate_unassigned_only.md）。
             for m in range(M):
                 if f[m] == -1:
                     for k in active_arms:
                         mu_hat[k][m] = E[m][k]
                         N_mat[k][m] = v_cnt[m][k]
+                else:
+                    for k in range(K):
+                        mu_hat[k][m] = 0.0
+                        N_mat[k][m] = 0
+            n_players_in_aggregate = sum(1 for m in range(M) if any(N_mat[k][m] > 0 for k in active_arms))
 
             # 2. Grand Leader が accept/reject を計算する（AcceptReject ヘルパー）
             C_accept, C_reject = self._compute_accept_reject(
@@ -243,6 +251,8 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                     "Q0": Q0,
                     "tau": tau,
                     "n_subleaders_charged": n_subleaders,
+                    "n_players_in_aggregate": n_players_in_aggregate,
+                    "n_unassigned": sum(1 for m in range(M) if f[m] == -1),
                     "n_subleaders_unassigned": n_subleaders_unassigned,
                     "max_followers_per_group": max_followers_per_group,
                     "uplink_follower": comm_uplink_follower,

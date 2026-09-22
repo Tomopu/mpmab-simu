@@ -113,6 +113,14 @@ class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
             # active followers（j >= 2 かつ未割当）
             follower_pids = [m for m in range(M) if j_list[m] >= 2 and j_list[m] <= M0 and f[m] == -1]
 
+            # 0. 割当済みのプレイヤーの過去の統計は集約に使わない（Huang 2022 は active な
+            #    プレイヤーの推定値だけを集約する。2026-09-22 以前は割当済みの欄を残して合計していた）
+            for m in range(M):
+                if f[m] != -1:
+                    for k in range(K):
+                        mu_hat[k][m] = 0.0
+                        N_mat[k][m] = 0
+
             # 1. leader 自身の E 値を mu_hat / N_mat に反映する
             for k in active_arms:
                 if v[leader_pid][k] > 0:

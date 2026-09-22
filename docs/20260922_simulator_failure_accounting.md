@@ -32,12 +32,12 @@ VMC・VNP・HDE は `good_arms[j-1]` の**順序**で通信路を選び、τ は
 主設定（K=20, M=8, T=10^6、降順）の trial 0〜9、Huang 2022 と Izumi 2026 の n=1〜4（計 50 行）を
 修正後のコードで実行し、`outputs/camera_ready_20260922/` の同じ行と比べた（2026-09-22）。
 `cumulative_regret`、`init_duration`、`find_good_duration`、`rank_duration`、`number_players_duration`、
-`collision_count`、`final_assignment_success` の不一致は 0 行。全行で `good_arm_agreement=1`、
+`collision_count`、`final_assignment_success` の不一致は 0 行。全行で `initialization_agreement=1`（当時の列名は `good_arm_agreement`）、
 `expected_tail_regret=0`、`n_within_assumptions=1`。乱数の消費は変えていないので、主実験の値は変わらない。
 
 Codex のレビューが挙げた再現条件（δ=0.9）で修正後の動作も確かめた。seed 0 の誤った割当 [2,0] では
 `expected_tail_regret=9,667.5` が加わり `cumulative_regret=10,457.0`、seed 52 の G の不一致は
-`good_arm_agreement=0` で失敗、seed 2 の j=1 なしは例外にならず `init_failure_reason` に残り、
+`initialization_agreement=0` で失敗、seed 2 の j=1 なしは例外にならず `init_failure_reason` に残り、
 (K, M, n)=(7, 2, 4) はコンストラクターが拒む。
 
 ## 実行の注意

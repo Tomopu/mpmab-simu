@@ -67,6 +67,15 @@ class TestSubleaderRelayCost:
             assert e["uplink_sub"] == 0
             assert e["downlink_sub"] == 0
 
+    def test_aggregate_uses_only_unassigned_players(self):
+        """集約統計は未割当プレイヤーの標本だけから作る（割当済みの過去の標本は使わない）。"""
+        algo = run(n=2)
+        log = algo.hde_comm_log
+        phases_with_assigned = [e for e in log if e["n_unassigned"] < M]
+        assert phases_with_assigned, "割当済みのプレイヤーがいるフェーズが生じる設定にする"
+        for e in log:
+            assert e["n_players_in_aggregate"] == e["n_unassigned"]
+
     @pytest.mark.parametrize("n", [2, 3])
     def test_follower_stage_counts_only_unassigned_followers(self, n):
         """フォロワー段の課金は「未割当フォロワーの最大人数」であること。"""

@@ -30,11 +30,11 @@ def build_result(
     for m in range(M):
         if player_good_arms is not None and m < len(player_good_arms):
             g_m = list(player_good_arms[m])
-            mt = player_mu_tilde[m] if player_mu_tilde is not None and m < len(player_mu_tilde) else {}
-            mu_min_m = min(mt.values()) if mt else 0.0
+            mt = dict(player_mu_tilde[m]) if player_mu_tilde is not None and m < len(player_mu_tilde) else {}
         else:
             g_m = list(good_arms)
-            mu_min_m = min(mu_tilde_map.values()) if mu_tilde_map else 0.0
+            mt = dict(mu_tilde_map)
+        mu_min_m = min(mt.values()) if mt else 0.0
         player_states.append(
             PlayerStateIzumi(
                 external_rank_s=s_list[m],
@@ -43,6 +43,7 @@ def build_result(
                 good_arms=g_m,
                 mu_tilde_min=mu_min_m,
                 assigned_arm=f_list[m],
+                mu_tilde=mt,
             )
         )
     return {

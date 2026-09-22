@@ -93,6 +93,7 @@ def save_regret_curve(
     phase_summary: pd.DataFrame | None = None,
     show_phase_boundaries: bool = True,
     log_xscale: bool = False,
+    log_yscale: bool = False,
     show_epoch_phases: bool = False,
 ) -> None:
     """
@@ -105,6 +106,8 @@ def save_regret_curve(
         phase_summary: trial summary DataFrame。指定すると phase 終了時刻を縦線で描く。
         show_phase_boundaries: True の場合、phase 終了時刻の平均を描く。
         log_xscale: True にすると x 軸を対数スケールにする（初期フェーズの重なり解消に有効）。
+        log_yscale: True にすると y 軸を対数スケールにする（regret の桁が大きく違う
+            手法を並べるときに有効）。
         show_epoch_phases: True の場合、BEACON エポックの comm/explore 切り替えを
             背景シェーディングで表示する。trial=0 の最初の izumi2026_parallel_beacon
             （または shi2021_beacon）の phase 列を使用する。
@@ -160,6 +163,13 @@ def save_regret_curve(
         xmin = max(grouped["time"].min(), 1)
         ax.set_xscale("log")
         ax.set_xlim(left=xmin)
+
+    if log_yscale:
+        # regret=0 は log で扱えないため正の値だけで下限を決める
+        positive = grouped.loc[grouped["mean"] > 0, "mean"]
+        ax.set_yscale("log")
+        if not positive.empty:
+            ax.set_ylim(bottom=positive.min() * 0.5)
 
     phase_specs = []
     if show_phase_boundaries and phase_summary is not None and not phase_summary.empty:
@@ -351,6 +361,91 @@ def _format_experiment_condition(curves: pd.DataFrame) -> str:
     return f"(K = {int(k_values[0])}, M = {int(m_values[0])})"
 
 
+def save_final_regret_by_n(
+    summary: pd.DataFrame,
+    output_path: str | Path,
+    confidence: float = 0.95,
+    metric: str = "cumulative_regret",
+    log_yscale: bool = True,
+) -> None:
+    """
+    n を横軸にした最終 cumulative regret の図を保存する。
+
+    n を持つ手法（izumi2026 系）は折れ線と誤差棒で描き、n を持たない baseline
+    （huang2022 や Randomized Selfish KL-UCB）は水平線で描く。
+
+    Args:
+        summary: trial summary DataFrame。
+        output_path: 保存先 PNG path。
+        confidence: 信頼区間（正規近似の 95% CI を想定）。
+        metric: 集計対象の列名。
+        log_yscale: True にすると y 軸を対数スケールにする。
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    z_value = 1.96 if confidence == 0.95 else 1.96
+    grouped = (
+        summary.groupby(["algorithm", "n"])[metric]
+        .agg(["mean", "std", "count"])
+        .reset_index()
+    )
+    grouped["ci"] = z_value * grouped["std"].fillna(0.0) / grouped["count"].pow(0.5)
+
+    variable_algos = sorted(
+        set(grouped["algorithm"]) - set(_FIXED_STYLES) - {"huang2022"}
+    )
+    fixed_algos = [a for a in grouped["algorithm"].unique() if a in _FIXED_STYLES]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    cmap = plt.cm.get_cmap("tab10")
+
+    for idx, algorithm in enumerate(variable_algos):
+        sub = grouped[grouped["algorithm"] == algorithm].sort_values("n")
+        ax.errorbar(
+            sub["n"],
+            sub["mean"],
+            yerr=sub["ci"],
+            marker="o",
+            capsize=4,
+            linewidth=2.0,
+            color=cmap(idx / 10.0),
+            label=_ALGORITHM_LABELS.get(algorithm, algorithm),
+            zorder=3,
+        )
+
+    for algorithm in fixed_algos:
+        sub = grouped[grouped["algorithm"] == algorithm]
+        value = float(sub["mean"].mean())
+        style = _FIXED_STYLES[algorithm]
+        ax.axhline(
+            value,
+            color=style["color"],
+            linestyle=style["linestyle"],
+            linewidth=style["linewidth"],
+            label=f"{_ALGORITHM_LABELS.get(algorithm, algorithm)} = {value:,.0f}",
+            zorder=4,
+        )
+
+    if log_yscale:
+        ax.set_yscale("log")
+    n_ticks = sorted(set(int(n) for n in grouped.loc[grouped["n"] > 0, "n"]))
+    if n_ticks:
+        ax.set_xticks(n_ticks)
+    ax.set_xlabel("n (number of Good Arms)")
+    ax.set_ylabel(f"average final {metric}")
+    condition = _format_experiment_condition(summary)
+    title = "Final Regret by n"
+    if condition:
+        title = f"{title} {condition}"
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8, loc="best")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=160)
+    plt.close(fig)
+
+
 def save_metric_bar(
     summary: pd.DataFrame,
     metric: str,
@@ -377,13 +472,18 @@ def save_metric_bar(
         for row in grouped.itertuples(index=False)
     ]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    # ラベルが長いと重なるので、括弧の前で改行して 2 行にする
+    labels = [label.replace(" (", "\n(", 1) for label in labels]
+
+    fig, ax = plt.subplots(figsize=(max(8, 1.2 * len(labels)), 5))
     bars = ax.bar(labels, grouped[metric])
     ax.set_ylabel(ylabel or metric)
     ax.set_title(title or metric)
     if "success" in metric or metric.endswith("_rate"):
         ax.set_ylim(0.0, 1.05)
     ax.bar_label(bars, fmt="%.2f", padding=3)
+    ax.tick_params(axis="x", labelsize=8)
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
     fig.savefig(output_path, dpi=160)

@@ -101,9 +101,11 @@ class HomogeneousHuang2022(
         except HorizonReached:
             pass
 
+        init_failure_reason: Optional[str] = None
+
         if k_tilde == -1:
             # FindGoodArm すら完了しなかった場合はそのまま返す
-            return build_result(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner)
+            return self._build(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner, None)
 
         # tau の計算（論文 Algorithm 5 の式）
         mu_safe = max(mu_tilde, 1e-12)
@@ -115,17 +117,35 @@ class HomogeneousHuang2022(
             s_list = self.virtual_musical_chairs(runner, k_tilde, tau_rank)
         except HorizonReached:
             pass
+        except ValueError as e:
+            init_failure_reason = f"VirtualMusicalChairs: {e}"
 
         # 3. VirtualNumberPlayers
-        try:
-            M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list, tau_comm)
-        except HorizonReached:
-            pass
+        if init_failure_reason is None:
+            try:
+                M_hat_list, j_list = self.virtual_number_players(runner, k_tilde, s_list, tau_comm)
+            except HorizonReached:
+                pass
+            except ValueError as e:
+                init_failure_reason = f"VirtualNumberPlayers: {e}"
 
         # 4. DistributedExploration
-        try:
-            f_list = self.distributed_exploration(runner, k_tilde, j_list, M_hat_list, tau_comm)
-        except HorizonReached:
-            pass
+        if init_failure_reason is None:
+            try:
+                f_list = self.distributed_exploration(runner, k_tilde, j_list, M_hat_list, tau_comm)
+            except HorizonReached:
+                pass
+            except ValueError as e:
+                # 初期化の確率的な失敗（j=1 がいない等）は例外にせず失敗結果として返す
+                init_failure_reason = f"DistributedExploration: {e}"
 
-        return build_result(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner)
+        return self._build(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner, init_failure_reason)
+
+    def _build(self, M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner, init_failure_reason):
+        """プレイヤーごとの Good Arm（合意の記録用）と失敗理由を含めて結果を組み立てる。"""
+        return build_result(
+            M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner,
+            player_k_tilde=getattr(self, "fga_player_k_tilde", None),
+            player_mu_tilde=getattr(self, "fga_player_mu_tilde", None),
+            init_failure_reason=init_failure_reason,
+        )

@@ -110,9 +110,14 @@ def build_curve_rows(
     trial: int,
     seed: int,
     sample_points: int,
+    stop_time: Optional[int] = None,
+    tail_loss_per_step: float = 0.0,
 ) -> List[Dict[str, object]]:
     """
     Trace から cumulative regret curve 用のサンプル行を作る。
+
+    stop_time より後の時刻は、最後の値に tail_loss_per_step × (t - stop_time) を足して延ばす
+    （割当が決まって実行を止めた後の固定割当の期待損失。正しい割当なら 0 で水平に延びる）。
 
     HomogeneousとHeterogeneous両方の設定型で動作する（K, M, T, delta を共通フィールドとして参照）。
 
@@ -136,6 +141,9 @@ def build_curve_rows(
             last_regret = float(trace_records[idx]["cumulative_regret"])
             last_phase = str(trace_records[idx]["phase"])
             idx += 1
+        regret_t = last_regret
+        if stop_time is not None and tail_loss_per_step > 0.0 and t > stop_time:
+            regret_t = last_regret + tail_loss_per_step * (t - stop_time)
         rows.append(
             {
                 "algorithm": algorithm,
@@ -147,7 +155,7 @@ def build_curve_rows(
                 "trial": trial,
                 "seed": seed,
                 "time": t,
-                "cumulative_regret": last_regret,
+                "cumulative_regret": regret_t,
                 "phase": last_phase,
             }
         )

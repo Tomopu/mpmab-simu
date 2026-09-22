@@ -49,6 +49,7 @@ class HomogeneousMultiChannelIzumi2026(
         n: int,
         delta: float,
         seed: Optional[int] = None,
+        allow_out_of_range_n: bool = False,
     ) -> None:
         if K < 2:
             raise ValueError("K は 2 以上でなければならない。")
@@ -58,6 +59,13 @@ class HomogeneousMultiChannelIzumi2026(
             raise ValueError("n は 1 以上でなければならない。")
         if n >= K - M:
             raise ValueError(f"n < K-M が必要。n={n}, K-M={K - M}")
+        # 論文の仮定 (A1): n <= M, 2n <= K。範囲外は allow_out_of_range_n=True のときだけ許す。
+        if not allow_out_of_range_n:
+            if n > M:
+                raise ValueError(f"n <= M が必要。n={n}, M={M}（範囲外を許すなら allow_out_of_range_n=True）")
+            if 2 * n > K:
+                raise ValueError(f"2n <= K が必要。n={n}, K={K}（範囲外を許すなら allow_out_of_range_n=True）")
+        self.allow_out_of_range_n = allow_out_of_range_n
         if not (0.0 < delta < 1.0):
             raise ValueError("delta は (0, 1) の範囲でなければならない。")
 
@@ -105,6 +113,11 @@ class HomogeneousMultiChannelIzumi2026(
         M_hat_list = [1] * M
         f_list = [-1] * M
 
+        # 初期化の確率的な失敗（内部ランクの誤推定で j=1 がいない等）は例外にせず、
+        # 理由を残して失敗結果として返す。以後の損失は評価側（compute_metrics）が
+        # 「残り時間 × 固定割当の期待損失」として数える。
+        init_failure_reason: Optional[str] = None
+
         # 1. FindMultipleGoodArms
         try:
             good_arms, mu_tilde_map = self.find_multiple_good_arms(runner)
@@ -113,7 +126,7 @@ class HomogeneousMultiChannelIzumi2026(
 
         if not good_arms:
             # FindMultipleGoodArms すら完了しなかった場合はそのまま返す
-            return build_result(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner)
+            return self._build(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, None)
 
         # tau の計算
         # 論文: tilde_mu_min <- min_{k in G} tilde_mu[k]
@@ -130,17 +143,34 @@ class HomogeneousMultiChannelIzumi2026(
             s_list = self.parallel_virtual_musical_chairs(runner, good_arms, tau_rank)
         except HorizonReached:
             pass
+        except ValueError as e:
+            init_failure_reason = f"ParallelVirtualMusicalChairs: {e}"
 
         # 3. ParallelVirtualNumberPlayers
-        try:
-            M_hat_list, j_list = self.parallel_virtual_number_players(runner, good_arms, s_list, tau_comm)
-        except HorizonReached:
-            pass
+        if init_failure_reason is None:
+            try:
+                M_hat_list, j_list = self.parallel_virtual_number_players(runner, good_arms, s_list, tau_comm)
+            except HorizonReached:
+                pass
+            except ValueError as e:
+                init_failure_reason = f"ParallelVirtualNumberPlayers: {e}"
 
         # 4. HierarchicalDistributedExploration
-        try:
-            f_list = self.hierarchical_distributed_exploration(runner, good_arms, j_list, M_hat_list, tau_comm)
-        except HorizonReached:
-            pass
+        if init_failure_reason is None:
+            try:
+                f_list = self.hierarchical_distributed_exploration(runner, good_arms, j_list, M_hat_list, tau_comm)
+            except HorizonReached:
+                pass
+            except ValueError as e:
+                init_failure_reason = f"HierarchicalDistributedExploration: {e}"
 
-        return build_result(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner)
+        return self._build(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, init_failure_reason)
+
+    def _build(self, M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, init_failure_reason):
+        """プレイヤーごとの Good Arm（合意の記録用）と失敗理由を含めて結果を組み立てる。"""
+        return build_result(
+            M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner,
+            player_good_arms=getattr(self, "fmga_player_good_arms", None),
+            player_mu_tilde=getattr(self, "fmga_player_mu_tilde", None),
+            init_failure_reason=init_failure_reason,
+        )

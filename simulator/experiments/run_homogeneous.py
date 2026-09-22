@@ -67,7 +67,9 @@ def run_huang_trial(
         player_states=result["player_states"],
         means=means,
         M=config.M,
+        horizon=config.T,
     )
+    metrics["init_failure_reason"] = result.get("init_failure_reason")
     summary = build_summary_row(
         config=config,
         algorithm="huang2022",
@@ -84,6 +86,8 @@ def run_huang_trial(
         trial=trial,
         seed=seed,
         sample_points=sample_points,
+        stop_time=int(metrics["total_steps"]),
+        tail_loss_per_step=float(metrics["tail_loss_per_step"]),
     )
     return summary, curves
 
@@ -115,6 +119,7 @@ def run_izumi_trial(
         n=n,
         delta=config.delta,
         seed=seed,
+        allow_out_of_range_n=config.allow_out_of_range_n,
     )
     result = algo.run(runner)
     metrics = compute_metrics(
@@ -122,7 +127,9 @@ def run_izumi_trial(
         player_states=result["player_states"],
         means=means,
         M=config.M,
+        horizon=config.T,
     )
+    metrics["init_failure_reason"] = result.get("init_failure_reason")
     summary = build_summary_row(
         config=config,
         algorithm="izumi2026",
@@ -139,6 +146,8 @@ def run_izumi_trial(
         trial=trial,
         seed=seed,
         sample_points=sample_points,
+        stop_time=int(metrics["total_steps"]),
+        tail_loss_per_step=float(metrics["tail_loss_per_step"]),
     )
     return summary, curves
 
@@ -341,10 +350,17 @@ def build_summary_row(
         "player_count_success",
         "rank_assignment_success",
         "assignment_duplicate",
+        "good_arm_agreement",
+        "regret_at_stop",
+        "expected_tail_regret",
+        "init_failure_reason",
     ]:
         value = metrics.get(key)
         if isinstance(value, bool):
             value = int(value)
         row[key] = value
+
+    # 論文の仮定 (A1) の範囲内の n か（n <= M, n < K-M, 2n <= K）
+    row["n_within_assumptions"] = int(n <= config.M and n < config.K - config.M and 2 * n <= config.K)
 
     return row

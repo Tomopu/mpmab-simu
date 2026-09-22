@@ -11,10 +11,11 @@ run ディレクトリ名の末尾 `_rskl` `_rskl_c3` を取り除いた名前�
         --root outputs/camera_ready_20260917
 
 出力:
-    <root>/figures/<設定名>/regret_curve.png
-    <root>/figures/<設定名>/regret_curve_log.png
-    <root>/figures/<設定名>/regret_curve_loglog.png
-    <root>/figures/<設定名>/final_regret_by_n.png
+    <root>/figures/<設定名>/regret_curve.png            （R-SKL の run があればそれも含む）
+    <root>/figures/<設定名>/regret_curve_without_rskl.png（R-SKL を除いた図。R-SKL がある設定だけ）
+    <root>/figures/<設定名>/regret_curve_log*.png
+    <root>/figures/<設定名>/regret_curve_loglog*.png
+    <root>/figures/<設定名>/final_regret_by_n*.png
     <root>/figures/<設定名>/collision_count_by_n.png
     <root>/figures/<設定名>/success_rate_by_n.png
     <root>/figures/<設定名>/summary_table.csv
@@ -228,31 +229,43 @@ def main() -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
 
         phase_summary = summary[~summary["algorithm"].isin(_PHASELESS_ALGORITHMS)]
-        save_regret_curve(
-            curves,
-            out_dir / "regret_curve.png",
-            confidence=args.ci,
-            phase_summary=phase_summary,
-            show_phase_boundaries=not args.no_phase_lines,
-        )
-        save_regret_curve(
-            curves,
-            out_dir / "regret_curve_log.png",
-            confidence=args.ci,
-            phase_summary=phase_summary,
-            show_phase_boundaries=not args.no_phase_lines,
-            log_xscale=True,
-        )
-        # 桁が 3 つ違う手法を並べるので、両対数でフェーズ線なしの図も作る
-        save_regret_curve(
-            curves,
-            out_dir / "regret_curve_loglog.png",
-            confidence=args.ci,
-            show_phase_boundaries=False,
-            log_xscale=True,
-            log_yscale=True,
-        )
-        save_final_regret_by_n(summary, out_dir / "final_regret_by_n.png", confidence=args.ci)
+        # R-SKL を含む図と含まない図の両方を作る（R-SKL の run がない設定は 1 組だけ）
+        has_rskl = bool(curves["algorithm"].isin(_PHASELESS_ALGORITHMS).any())
+        variants = [("", curves, summary)]
+        if has_rskl:
+            variants.append(
+                (
+                    "_without_rskl",
+                    curves[~curves["algorithm"].isin(_PHASELESS_ALGORITHMS)],
+                    summary[~summary["algorithm"].isin(_PHASELESS_ALGORITHMS)],
+                )
+            )
+        for suffix, curves_v, summary_v in variants:
+            save_regret_curve(
+                curves_v,
+                out_dir / f"regret_curve{suffix}.png",
+                confidence=args.ci,
+                phase_summary=phase_summary,
+                show_phase_boundaries=not args.no_phase_lines,
+            )
+            save_regret_curve(
+                curves_v,
+                out_dir / f"regret_curve_log{suffix}.png",
+                confidence=args.ci,
+                phase_summary=phase_summary,
+                show_phase_boundaries=not args.no_phase_lines,
+                log_xscale=True,
+            )
+            # 桁が 3 つ違う手法を並べるので、両対数でフェーズ線なしの図も作る
+            save_regret_curve(
+                curves_v,
+                out_dir / f"regret_curve_loglog{suffix}.png",
+                confidence=args.ci,
+                show_phase_boundaries=False,
+                log_xscale=True,
+                log_yscale=True,
+            )
+            save_final_regret_by_n(summary_v, out_dir / f"final_regret_by_n{suffix}.png", confidence=args.ci)
         save_metric_bar(
             summary,
             "collision_count",

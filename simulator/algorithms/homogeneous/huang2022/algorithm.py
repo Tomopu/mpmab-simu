@@ -107,6 +107,13 @@ class HomogeneousHuang2022(
             # FindGoodArm すら完了しなかった場合はそのまま返す
             return self._build(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner, None)
 
+        # 評価用の保守的な規約: Good Arm と下界が全プレイヤーで一致しなければ、この試行をここで失敗として止める
+        ks = getattr(self, "fga_player_k_tilde", None)
+        mus = getattr(self, "fga_player_mu_tilde", None)
+        if ks and mus and (any(k != ks[0] for k in ks) or any(mu != mus[0] for mu in mus)):
+            reason = f"FindGoodArm: players disagree on the Good Arm or its lower bound (arms={ks}, bounds={mus})"
+            return self._build(M, s_list, j_list, M_hat_list, k_tilde, mu_tilde, f_list, runner, reason)
+
         # tau の計算（論文 Algorithm 5 の式）
         mu_safe = max(mu_tilde, 1e-12)
         tau_rank = _ceil(K * _ln(1.0 / delta) / mu_safe)

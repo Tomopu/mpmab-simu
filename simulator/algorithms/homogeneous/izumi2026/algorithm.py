@@ -128,6 +128,14 @@ class HomogeneousMultiChannelIzumi2026(
             # FindMultipleGoodArms すら完了しなかった場合はそのまま返す
             return self._build(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, None)
 
+        # 評価用の保守的な規約: 通信路の順序つきリストと各腕の下界が全プレイヤーで一致しなければ、
+        # この試行をここで失敗として止める（以後は未割当のまま。残り時間は評価側が最大損失で数える）。
+        # これはプレイヤーが使える通信操作ではない。不一致後にプレイヤー 0 の G で続けた軌跡は
+        # 元の分散アルゴリズムを表さないので、評価しない。
+        disagreement = self._initialization_disagreement()
+        if disagreement is not None:
+            return self._build(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, disagreement)
+
         # tau の計算
         # 論文: tilde_mu_min <- min_{k in G} tilde_mu[k]
         mu_min = min(mu_tilde_map.get(k, 1e-12) for k in good_arms)
@@ -165,6 +173,18 @@ class HomogeneousMultiChannelIzumi2026(
                 init_failure_reason = f"HierarchicalDistributedExploration: {e}"
 
         return self._build(M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, init_failure_reason)
+
+    def _initialization_disagreement(self) -> Optional[str]:
+        """FindMultipleGoodArms の出力（順序つき G と各腕の下界）が全プレイヤーで一致しなければ理由を返す。"""
+        lists = getattr(self, "fmga_player_good_arms", None)
+        bounds = getattr(self, "fmga_player_mu_tilde", None)
+        if not lists or not bounds:
+            return None
+        if any(g != lists[0] for g in lists):
+            return f"FindMultipleGoodArms: players disagree on the ordered channel list {lists}"
+        if any(b != bounds[0] for b in bounds):
+            return f"FindMultipleGoodArms: players disagree on the lower bounds {bounds}"
+        return None
 
     def _build(self, M, good_arms, mu_tilde_map, s_list, j_list, M_hat_list, f_list, runner, init_failure_reason):
         """プレイヤーごとの Good Arm（合意の記録用）と失敗理由を含めて結果を組み立てる。"""

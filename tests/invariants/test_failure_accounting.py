@@ -6,7 +6,9 @@
 - 割当が決まって実行を止めた後の残り時間の期待損失（expected_tail_regret）が
   cumulative_regret に加わること。正しい割当なら 0 で値が変わらないこと
 - 曲線の延長が tail_loss_per_step の傾きで伸びること
-- Good Arm の不一致が good_arm_agreement=False として記録され、成功と数えないこと
+- Good Arm の不一致が記録され、成功と数えないこと。集合の一致（good_arm_set_agreement）と、
+  通信路の順序つきリストと下界の一致（initialization_agreement）を分けること
+- 不一致のときは初期化の直後に失敗として止まり、残り時間を最大損失で数えること（評価用の規約）
 - 初期化の確率的な失敗（j=1 がいない）が例外にならず init_failure_reason に残ること
 - 論文の仮定 (A1) の範囲外の n をコンストラクターが既定で拒み、フラグで許すこと
 """
@@ -45,12 +47,13 @@ def _trace_with_steps(num_players: int, steps: int, regret_per_step: float = 1.0
     return trace
 
 
-def _states(assigned, good_arms=None):
+def _states(assigned, good_arms=None, mu_tilde=None):
     good_arms = good_arms or [[0, 1] for _ in assigned]
+    mu_tilde = mu_tilde or [{k: 0.5 for k in g} for g in good_arms]
     return [
         SimpleNamespace(external_rank_s=i, internal_rank_j=i + 1, M_hat=len(assigned),
-                        good_arms=list(g), mu_tilde_min=0.5, assigned_arm=a)
-        for i, (a, g) in enumerate(zip(assigned, good_arms))
+                        good_arms=list(g), mu_tilde_min=min(mt.values()), assigned_arm=a, mu_tilde=dict(mt))
+        for i, (a, g, mt) in enumerate(zip(assigned, good_arms, mu_tilde))
     ]
 
 
@@ -110,19 +113,61 @@ class TestCurveExtension:
 
 
 class TestGoodArmAgreement:
-    def test_disagreement_is_recorded_and_not_success(self):
+    def test_set_disagreement_is_recorded_and_not_success(self):
         trace = _trace_with_steps(2, 10)
         states = _states([0, 1], good_arms=[[0, 2], [1, 0]])
         metrics = compute_metrics(trace, states, MEANS, M=2, horizon=100)
-        assert metrics["good_arm_agreement"] is False
+        assert metrics["good_arm_set_agreement"] is False
+        assert metrics["initialization_agreement"] is False
         assert metrics["final_assignment_success"] is False
 
-    def test_agreement_uses_sets(self):
+    def test_same_set_different_order_is_not_initialization_agreement(self):
+        # {0,1} は一致するが、通信路の順序 [0,1] と [1,0] は同じプロトコル状態ではない
         trace = _trace_with_steps(2, 10)
         states = _states([0, 1], good_arms=[[0, 1], [1, 0]])
         metrics = compute_metrics(trace, states, MEANS, M=2, horizon=100)
-        assert metrics["good_arm_agreement"] is True
+        assert metrics["good_arm_set_agreement"] is True
+        assert metrics["initialization_agreement"] is False
+        assert metrics["final_assignment_success"] is False
+
+    def test_different_lower_bounds_is_not_initialization_agreement(self):
+        # 順序は同じでも下界が違えば tau が違う
+        trace = _trace_with_steps(2, 10)
+        states = _states([0, 1], good_arms=[[0, 1], [0, 1]],
+                         mu_tilde=[{0: 0.125, 1: 0.125}, {0: 0.25, 1: 0.125}])
+        metrics = compute_metrics(trace, states, MEANS, M=2, horizon=100)
+        assert metrics["good_arm_set_agreement"] is True
+        assert metrics["initialization_agreement"] is False
+        assert metrics["final_assignment_success"] is False
+
+    def test_identical_initialization_is_agreement(self):
+        trace = _trace_with_steps(2, 10)
+        states = _states([0, 1], good_arms=[[0, 1], [0, 1]])
+        metrics = compute_metrics(trace, states, MEANS, M=2, horizon=100)
+        assert metrics["good_arm_set_agreement"] is True
+        assert metrics["initialization_agreement"] is True
         assert metrics["final_assignment_success"] is True
+
+    def test_disagreement_stops_the_trial_as_failure(self, monkeypatch):
+        env = BernoulliMPMABEnv(means=MEANS, num_players=2, seed=0)
+        runner = Runner(env=env, horizon=200_000)
+        algo = HomogeneousMultiChannelIzumi2026(K=5, M=2, n=2, delta=0.1, seed=0)
+
+        def fake_fmga(runner):
+            algo.fmga_player_good_arms = [[0, 1], [1, 0]]
+            algo.fmga_player_mu_tilde = [{0: 0.5, 1: 0.5}, {1: 0.5, 0: 0.5}]
+            return [0, 1], {0: 0.5, 1: 0.5}
+
+        monkeypatch.setattr(algo, "find_multiple_good_arms", fake_fmga)
+        result = algo.run(runner)
+        assert result["init_failure_reason"] is not None
+        assert "disagree" in result["init_failure_reason"]
+        assert all(ps.assigned_arm == -1 for ps in result["player_states"])
+        assert [ps.good_arms for ps in result["player_states"]] == [[0, 1], [1, 0]]
+        metrics = compute_metrics(runner.trace, result["player_states"], MEANS, M=2, horizon=200_000)
+        assert metrics["initialization_agreement"] is False
+        assert metrics["final_assignment_success"] is False
+        assert metrics["tail_loss_per_step"] == pytest.approx(TOP2)
 
     def test_build_result_keeps_per_player_good_arms(self):
         env = BernoulliMPMABEnv(means=MEANS, num_players=2, seed=0)
@@ -131,6 +176,7 @@ class TestGoodArmAgreement:
                               player_good_arms=[[0, 2], [1, 0]],
                               player_mu_tilde=[{0: 0.125, 2: 0.125}, {1: 0.25, 0: 0.125}])
         assert [ps.good_arms for ps in result["player_states"]] == [[0, 2], [1, 0]]
+        assert [ps.mu_tilde for ps in result["player_states"]] == [{0: 0.125, 2: 0.125}, {1: 0.25, 0: 0.125}]
         assert result["init_failure_reason"] is None
 
 

@@ -52,7 +52,10 @@ def compute_metrics(
           - final_assignment_success: 全プレイヤーが重複なく top-M arm に割り当てられ、
               Good Arm の合意にも失敗していないか（bool）
           - assignment_duplicate: 割当腕に重複があるか（bool）
-          - good_arm_agreement: 全プレイヤーの Good Arm（集合）が一致したか（bool、情報がなければ None）
+          - good_arm_set_agreement: 全プレイヤーの Good Arm の集合が一致したか（bool、情報がなければ None）
+          - initialization_agreement: 通信路の順序つきリストと各腕の下界（Huang 2022 では
+              Good Arm と下界）が全プレイヤーで一致したか（bool、情報がなければ None）。
+              成功判定にはこちらを使う
           - regret_at_stop: 実行を止めた時点までの累積 regret（observed reward ベース）
           - expected_tail_regret: 残り時間の固定割当の期待損失（horizon を渡した場合）
           - tail_loss_per_step: 残り時間の 1 ステップあたり期待損失
@@ -118,7 +121,8 @@ def compute_metrics(
         "player_count_success": None,
         "final_assignment_success": None,
         "assignment_duplicate": None,
-        "good_arm_agreement": None,
+        "good_arm_set_agreement": None,
+        "initialization_agreement": None,
         "regret_at_stop": cumulative_regret,
         "expected_tail_regret": 0.0,
         "tail_loss_per_step": 0.0,
@@ -146,17 +150,27 @@ def compute_metrics(
         assignment_duplicate = len(assigned) != len(set(assigned))
         metrics["assignment_duplicate"] = assignment_duplicate
 
-        # Good Arm の合意: 全プレイヤーの Good Arm（集合）が一致するか
-        good_arm_agreement: Optional[bool] = None
+        # 初期化の合意。集合の一致（弱い）と、通信路の順序つきリストと各腕の下界の一致（プロトコルの
+        # 状態が同じ）を分けて記録する。VMC・VNP・HDE は good_arms[j-1] の順序で通信路を選び、
+        # tau は下界から計算するので、順序か下界が違えば同じプロトコル状態ではない。
+        good_arm_set_agreement: Optional[bool] = None
+        initialization_agreement: Optional[bool] = None
         if hasattr(player_states[0], "good_arms"):
-            sets = [sorted(ps.good_arms) for ps in player_states]
-            if all(sets):
-                good_arm_agreement = all(g == sets[0] for g in sets)
+            lists = [list(ps.good_arms) for ps in player_states]
+            if all(lists):
+                good_arm_set_agreement = all(sorted(g) == sorted(lists[0]) for g in lists)
+                bounds = [dict(getattr(ps, "mu_tilde", {}) or {}) for ps in player_states]
+                initialization_agreement = all(g == lists[0] for g in lists) and all(
+                    b == bounds[0] for b in bounds
+                )
         elif hasattr(player_states[0], "good_arm"):
             values = [ps.good_arm for ps in player_states]
             if all(v >= 0 for v in values):
-                good_arm_agreement = all(v == values[0] for v in values)
-        metrics["good_arm_agreement"] = good_arm_agreement
+                good_arm_set_agreement = all(v == values[0] for v in values)
+                bounds = [getattr(ps, "mu_tilde", None) for ps in player_states]
+                initialization_agreement = good_arm_set_agreement and all(b == bounds[0] for b in bounds)
+        metrics["good_arm_set_agreement"] = good_arm_set_agreement
+        metrics["initialization_agreement"] = initialization_agreement
 
         # top-M arm に全員が重複なく割り当てられているか確認
         if means is not None:
@@ -167,7 +181,7 @@ def compute_metrics(
                 len(assigned) == num_players
                 and not assignment_duplicate
                 and all(a in top_m_arms for a in assigned)
-                and good_arm_agreement is not False
+                and initialization_agreement is not False
             )
             metrics["final_assignment_success"] = final_assignment_success
 

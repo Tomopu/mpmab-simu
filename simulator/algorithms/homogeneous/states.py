@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 
 @dataclass
@@ -37,9 +37,10 @@ class PlayerStateIzumi:
         external_rank_s: ParallelVirtualMusicalChairs の出力 s（0-based, 論文 s-1 に対応）
         internal_rank_j: ParallelVirtualNumberPlayers の出力 j（1-based, 論文と同じ）
         M_hat: 推定プレイヤー数
-        good_arms: FindMultipleGoodArms の出力（0-based arm index のリスト）
+        good_arms: FindMultipleGoodArms の出力（0-based arm index のリスト。通信路の順序を保つ）
         mu_tilde_min: good_arms 中の最小報酬下界
         assigned_arm: HierarchicalDistributedExploration の出力（0-based, 未割当は -1）
+        mu_tilde: 各 good arm の報酬下界 {arm: lower bound}（初期化の合意の検査用）
     """
 
     external_rank_s: int
@@ -48,3 +49,4 @@ class PlayerStateIzumi:
     good_arms: List[int]
     mu_tilde_min: float
     assigned_arm: int
+    mu_tilde: Dict[int, float] = field(default_factory=dict)

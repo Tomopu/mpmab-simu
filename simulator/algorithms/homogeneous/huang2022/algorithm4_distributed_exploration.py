@@ -113,8 +113,10 @@ class Huang2022DistributedExplorationMixin(Huang2022CommunicationMixin):
             # active followers（j >= 2 かつ未割当）
             follower_pids = [m for m in range(M) if j_list[m] >= 2 and j_list[m] <= M0 and f[m] == -1]
 
-            # 0. 割当済みのプレイヤーの過去の統計は集約に使わない（Huang 2022 は active な
-            #    プレイヤーの推定値だけを集約する。2026-09-22 以前は割当済みの欄を残して合計していた）
+            # 0. 割当済みのプレイヤーの過去の統計は集約に使わない（未割当のみを集約する Huang 型基準法。
+            #    原論文の ComLeader は保持配列をコピーして i=1..M で和を取るので、引退した欄の扱いは
+            #    擬似コードから確定できない。2026-09-22 以前は割当済みの欄を残して合計していた。
+            #    docs/20260923_hde_aggregate_unassigned_only.md）
             for m in range(M):
                 if f[m] != -1:
                     for k in range(K):

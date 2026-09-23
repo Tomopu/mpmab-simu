@@ -1,6 +1,6 @@
 # 失敗した試行の評価を直す（F24、2026-09-22）
 
-Codex のシミュレーターレビュー（論文リポジトリ `reviews/simulator_code_review.md`）が挙げた 5 件への対応。
+Codex のシミュレーターレビュー（論文リポジトリ `reviews/codex/02_simulator_code_review.md`）が挙げた 5 件への対応。
 **9 月 22 日の主実験（`outputs/camera_ready_20260922/`）の数値は変わらない**（保存 CSV に該当する試行がない）。
 失敗を含む実験を正しく評価するための修正である。
 
@@ -49,5 +49,5 @@ PR #11 後の再実行（`outputs/camera_ready_20260923/`、2,320 行）では�
 
 ## 関連
 
-- `reviews/codex_second_review_verification.md`（論文リポジトリ）第 3 章
+- `reviews/verification/02_codex_second_review_verification.md`（論文リポジトリ）第 3 章
 - `tests/invariants/test_failure_accounting.py`

@@ -41,4 +41,4 @@ Randomized Selfish KL-UCB の結果はこの修正の影響を受けない。修
 
 ## 関連
 
-- `reviews/codex_review_verification.md`（論文リポジトリ）の指摘 2 と実験 B
+- `reviews/verification/01_codex_review_verification.md`（論文リポジトリ）の指摘 2 と実験 B

@@ -99,9 +99,10 @@ def run_izumi_trial(
     n: int,
     sample_points: int,
     means: Optional[List[float]] = None,
+    assignment_rule: str = "channel_owner",
 ) -> Tuple[Dict[str, object], List[Dict[str, object]]]:
     """
-    Izumi 2026 を 1 trial 実行する。
+    Izumi 2026 を 1 trial 実行する。assignment_rule="handoff" なら Codex の案 II（algorithm 名は izumi2026_handoff）。
 
     Args:
         means: この trial の arm 期待値の並び。None なら config.means を使う。
@@ -120,8 +121,10 @@ def run_izumi_trial(
         delta=config.delta,
         seed=seed,
         allow_out_of_range_n=config.allow_out_of_range_n,
+        assignment_rule=assignment_rule,
     )
     result = algo.run(runner)
+    name = "izumi2026_handoff" if assignment_rule == "handoff" else "izumi2026"
     metrics = compute_metrics(
         trace=runner.trace,
         player_states=result["player_states"],
@@ -132,16 +135,19 @@ def run_izumi_trial(
     metrics["init_failure_reason"] = result.get("init_failure_reason")
     summary = build_summary_row(
         config=config,
-        algorithm="izumi2026",
+        algorithm=name,
         n=n,
         trial=trial,
         seed=seed,
         metrics=metrics,
     )
+    summary["handoff_count"] = getattr(algo, "hde_handoff_count", 0)
+    summary["handoff_failures"] = getattr(algo, "hde_handoff_failures", 0)
+    summary["tail_violations"] = getattr(algo, "hde_tail_violations", 0)
     curves = build_curve_rows(
         trace_records=runner.trace.to_records(),
         config=config,
-        algorithm="izumi2026",
+        algorithm=name,
         n=n,
         trial=trial,
         seed=seed,
@@ -178,6 +184,8 @@ def run_with_optional_retry(
         run_fn = lambda s: run_huang_trial(config, trial, s, sample_points, means)
     elif algorithm == "izumi2026":
         run_fn = lambda s: run_izumi_trial(config, trial, s, n, sample_points, means)
+    elif algorithm == "izumi2026_handoff":
+        run_fn = lambda s: run_izumi_trial(config, trial, s, n, sample_points, means, assignment_rule="handoff")
     else:
         raise ValueError(f"unknown algorithm: {algorithm}")
     summary, curves = _run_with_retry(run_fn, seed, retry_on_failure, max_attempts, algorithm, n, trial)

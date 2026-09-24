@@ -96,6 +96,12 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
         #       （救済の前提条件。割当が成立したかどうかによらず数える）
         self.hde_fix5_r_neq_j_count = 0
         self.hde_fix4a_rescue_count = 0
+        #   hde_handoff_count: 案 II で、非通信腕を持つリーダーが通信腕と引継いだ回数
+        #   hde_handoff_failures: 案 II で引継ぎ元のリーダーがおらず、フォロワーに通信腕を渡した回数（理論上は 0）
+        #   hde_tail_violations: 案 II で、未割当集合が固定した抜ける順番の末尾でなかった判定の回数（理論上は 0）
+        self.hde_handoff_count = 0
+        self.hde_handoff_failures = 0
+        self.hde_tail_violations = 0
         self.hde_channel_rejected_count = 0
         #   hde_comm_log: フェーズごとの通信時間の内訳（サブリーダー段の課金本数など）
         self.hde_comm_log: List[Dict[str, int]] = []
@@ -285,6 +291,32 @@ class Izumi2026HierarchicalDistributedExplorationMixin(Izumi2026CommunicationMix
                         idx = M0 - j_list[m]
                         if 0 <= idx < len(C0_accept):
                             f[m] = C0_accept[idx]
+                elif getattr(self, "assignment_rule", "channel_owner") == "handoff":
+                    # Codex の案 II（reviews/codex/07_assignment_rule_redesign.md の 4.1 節）。
+                    # 探索から抜ける順番を π = (n, n-1, ..., 1, M, M-1, ..., n+1)（内部ランク）に固定する。
+                    # 受理腕を腕番号順に処理し、π で最初の未割当者 u に渡す。u がフォロワーで腕が通信腕なら、
+                    # 非通信腕を持つ割当済みリーダーのうちランク最小の h が通信腕を取り、旧い腕を u に渡す。
+                    # 全員の更新は下りの終了時刻に一斉に適用する（ここでは 1 回の代入で表す）。
+                    by_rank = {j_list[m]: m for m in range(M)}
+                    pi = [by_rank[j] for j in list(range(n, 0, -1)) + list(range(M, n, -1)) if j in by_rank]
+                    unassigned = [m for m in pi if f[m] == -1]
+                    if unassigned != pi[len(pi) - len(unassigned):]:
+                        self.hde_tail_violations += 1
+                    for a in sorted(C_accept):
+                        u = next((m for m in pi if f[m] == -1), None)
+                        if u is None:
+                            break
+                        if j_list[u] <= n or a not in good_set:
+                            f[u] = a
+                            continue
+                        holders = [m for m in range(M) if j_list[m] <= n and f[m] != -1 and f[m] not in good_set]
+                        if holders:
+                            h = min(holders, key=lambda m: j_list[m])
+                            f[u], f[h] = f[h], a
+                            self.hde_handoff_count += 1
+                        else:
+                            f[u] = a
+                            self.hde_handoff_failures += 1
                 else:
                     # n>1: Grand Leader (j=1) と Sub-Leader (2<=j<=n) は
                     # 担当チャンネル good_arms[j-1] が C_accept に入ったとき割り当て。

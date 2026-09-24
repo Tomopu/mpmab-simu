@@ -35,7 +35,7 @@ from simulator.utils import save_metric_bar, save_regret_curve
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # --algorithms で指定できるアルゴリズム名
-ALGORITHM_CHOICES = ("huang2022", "izumi2026", *RSKL_ALGORITHMS)
+ALGORITHM_CHOICES = ("huang2022", "izumi2026", "izumi2026_channel_owner", *RSKL_ALGORITHMS)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -205,11 +205,13 @@ def main() -> None:
             summary_rows.append(summary)
             curve_rows.extend(curves)
 
-        if "izumi2026" in algorithms:
+        for izumi_name in [a for a in ("izumi2026", "izumi2026_channel_owner") if a in algorithms]:
             for n in config.n_values:
+                if izumi_name == "izumi2026_channel_owner" and n == 1:
+                    continue  # n = 1 は Huang 型の分岐で、割当規則によらず izumi2026 と同じ
                 summary, curves = run_with_optional_retry(
                     config=config,
-                    algorithm="izumi2026",
+                    algorithm=izumi_name,
                     trial=trial,
                     seed=seed,
                     n=n,

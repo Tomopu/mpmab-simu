@@ -50,7 +50,7 @@ class HomogeneousMultiChannelIzumi2026(
         delta: float,
         seed: Optional[int] = None,
         allow_out_of_range_n: bool = False,
-        assignment_rule: str = "channel_owner",
+        assignment_rule: str = "handoff",
     ) -> None:
         if K < 2:
             raise ValueError("K は 2 以上でなければならない。")
@@ -67,8 +67,9 @@ class HomogeneousMultiChannelIzumi2026(
             if 2 * n > K:
                 raise ValueError(f"2n <= K が必要。n={n}, K={K}（範囲外を許すなら allow_out_of_range_n=True）")
         self.allow_out_of_range_n = allow_out_of_range_n
-        # n >= 2 の割当規則。"channel_owner"：受理された通信腕は担当リーダーへ（論文の現行規則）。
-        # "handoff"：Codex の案 II（抜ける順番を固定し、通信腕はリーダー間で引継ぐ）。
+        # n >= 2 の割当規則。既定は "handoff"：Codex の案 II（抜ける順番を固定し、通信腕はリーダー間で引継ぐ。
+        # 2026-09-24 に採用。docs/20260924_assignment_handoff.md）。
+        # "channel_owner"：受理された通信腕は担当リーダーへ（2026-09-23 までの規則。比較用に残す）。
         # reviews/codex/07_assignment_rule_redesign.md の 4 節。n = 1 はどちらでも Huang 型のまま。
         if assignment_rule not in ("channel_owner", "handoff"):
             raise ValueError(f"unknown assignment_rule: {assignment_rule}")

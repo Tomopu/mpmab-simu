@@ -129,14 +129,25 @@ def simulate_rskl_batch(
     for block_start in range(1, T + 1, block):
         length = min(block, T - block_start + 1)
         # 1. trial ごとの乱数系列から、このブロック分の乱数をまとめて作る
-        noise_block = np.stack([pr.standard_normal((length, M, K)) for pr, _ in rngs], axis=1)
+        #    （selfish_ts の標本は統計に依存するので、各ステップで作る。正規乱数は使わない）
+        if variant != "selfish_ts":
+            noise_block = np.stack([pr.standard_normal((length, M, K)) for pr, _ in rngs], axis=1)
         uniform_block = np.stack([er.random((length, M)) for _, er in rngs], axis=1)
 
         for s in range(length):
             t = block_start + s
             # 2. 各プレイヤーが自分の統計だけから行動を選ぶ（衝突フラグは使わない）
+            if variant == "selfish_ts":
+                # Beta(1 + 成功数, 1 + 失敗数) から標本を引く。trial ごとの乱数系列を使うので、
+                # バッチのまとめ方によらず各 trial の結果は同じになる
+                failures = counts - reward_sums
+                step_noise = np.stack(
+                    [pr.beta(1.0 + reward_sums[b], 1.0 + failures[b]) for b, (pr, _) in enumerate(rngs)]
+                )
+            else:
+                step_noise = noise_block[s]
             actions, prev_index = select_actions(
-                counts, reward_sums, t, noise_block[s], prev_index=prev_index, c=c, variant=variant
+                counts, reward_sums, t, step_noise, prev_index=prev_index, c=c, variant=variant
             )
             # 3. 環境: arm ごとの選択人数から衝突を判定し、報酬を生成する
             chosen = actions[:, :, None] == arms  # (B, M, K)

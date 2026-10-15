@@ -16,7 +16,10 @@ from simulator.utils import compute_metrics
 # Randomized Selfish KL-UCB の algorithm 名（summary/curves の algorithm 列に入る）と、使う版の対応
 #   trinh2021_rskl    : 論文の本文の定義（c = 0、指数は厳密に計算）
 #   trinh2021_rskl_c3 : 著者の公開実装と同じ計算（c = 3、指数は幅 1e-3 の二分法）
-RSKL_ALGORITHMS = {"trinh2021_rskl": "paper", "trinh2021_rskl_c3": "authors_code"}
+RSKL_ALGORITHMS = {"trinh2021_rskl": "paper", "trinh2021_rskl_c3": "authors_code",
+                   # 比較用の基準（同じ高速版で回す）。selfish_klucb は乱数の項のない Selfish KL-UCB（c = 0、
+                   # 同点だけ一様に崩す）、selfish_ts は各自の観測による Beta 事後分布の Thompson Sampling
+                   "selfish_klucb": "selfish_klucb", "selfish_ts": "selfish_ts"}
 
 
 def trial_means(config: ExperimentConfig, seed: int) -> Tuple[List[float], List[int]]:
@@ -257,7 +260,7 @@ def _run_rskl_chunk(args: Tuple) -> Tuple[List[Dict[str, object]], List[Dict[str
                     "seed": seed,
                     "time": t,
                     "cumulative_regret": float(result.curve[i, j]),
-                    "phase": "randomized_selfish_klucb",
+                    "phase": algorithm,
                     "attempt": 0,
                     "attempts_used": 1,
                 }
